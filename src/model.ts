@@ -348,7 +348,7 @@ export default class Model {
     await Promise.all(Object.keys(data).map(async key => {
       if (data[key] == null) return
 
-      if (data[key].constructor?.name === "Observable") {
+      if (typeof data[key] === "object" && "subscribe" in data[key]) {
         delete data[key]
       }
     }))
