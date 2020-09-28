@@ -16,6 +16,7 @@ jobs:
         with:
           node-version: 13
           registry-url: https://registry.npmjs.org/
+      - run: npm install --only prod
       - run: npm run build
       - run: npm publish
         env:
