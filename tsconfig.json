@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "lib": [
+      "DOM",
+      "ES2017",
+    ],
+    "target": "es2015",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importsNotUsedAsValues": "error",
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "strict": true,
+    "declaration": true,
+    "outDir": "dist",
+  },
+  "files": [
+    "src/index.ts",
+  ],
+  "exclude": [
+    "dist",
+    "node_modules",
+  ],
+}
