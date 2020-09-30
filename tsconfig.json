@@ -7,8 +7,6 @@
     "target": "es2015",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
     "importsNotUsedAsValues": "error",
     "resolveJsonModule": true,
     "moduleResolution": "node",
@@ -16,7 +14,6 @@
     "strict": true,
     "declaration": true,
     "outDir": "dist",
-    "module": "CommonJS",
   },
   "include": [
     "src",
