@@ -1,10 +1,10 @@
 import User from "./User"
-import Model, { belongsTo, ModelQuery } from "../../src/model"
+import Model, { BelongsTo, ModelQuery } from "../../src"
 
 export default class Comment extends Model {
   static collection = "comments"
 
-  @belongsTo(User)
+  @BelongsTo(User)
   public author: ModelQuery<typeof User>
   public body: string
 
