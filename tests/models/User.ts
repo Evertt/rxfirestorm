@@ -1,4 +1,4 @@
-import Model, { Props } from "../../src"
+import Model, { Props } from "../../src/model"
 
 export default class User extends Model {
   static collection = "users"
