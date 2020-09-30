@@ -1,4 +1,4 @@
-import type Model from "../Model"
+import type Model from "../Bla"
 import { addSubscription } from "./common"
 import type { CollectionQuery } from "../CollectionQuery"
 
