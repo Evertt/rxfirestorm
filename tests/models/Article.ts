@@ -1,12 +1,11 @@
 import Comment from "./Comment"
 import User from "./User"
 import Model, {
-  PropsRequired,
-  belongsTo,
-  subcollection,
+  BelongsTo,
+  SubCollection,
   ModelQuery,
   CollectionQuery,
-} from "../../src/model"
+} from "../../src"
 
 export default class Article extends Model {
   static collection = "articles"
@@ -14,8 +13,8 @@ export default class Article extends Model {
   public title = ""
   public body = ""
 
-  @belongsTo(User) public author: ModelQuery<typeof User>
-  @subcollection(Comment) public comments!: CollectionQuery<typeof Comment>
+  @BelongsTo(User) public author: ModelQuery<typeof User>
+  @SubCollection(Comment) public comments!: CollectionQuery<typeof Comment>
 
   constructor(init: { title?: string, body?: string, author: User }) {
     super(init)
