@@ -16,9 +16,10 @@
     "strict": true,
     "declaration": true,
     "outDir": "dist",
+    "module": "CommonJS",
   },
-  "files": [
-    "src/index.ts",
+  "include": [
+    "src",
   ],
   "exclude": [
     "dist",
