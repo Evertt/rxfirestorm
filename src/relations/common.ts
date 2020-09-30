@@ -1,4 +1,4 @@
-import type Model from "../Bla"
+import type Model from "../Model"
 
 export const metadata = new Map()
 const subs: ((t: any, id: string) => void)[] = []

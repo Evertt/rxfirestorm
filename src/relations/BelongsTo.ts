@@ -1,4 +1,4 @@
-import type Model from "../Bla"
+import type Model from "../Model"
 import { Observable } from "rxjs"
 import { extend } from "../common"
 import { metadata } from "./common"

@@ -1,4 +1,4 @@
-import Model, { db } from "./Bla"
+import Model, { db } from "./Model"
 import { extend, initModel, makeProxy, queryStoreCache, queryToString } from "./common"
 import { Observable, Subject } from "rxjs"
 import {

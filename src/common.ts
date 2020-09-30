@@ -1,4 +1,4 @@
-import type Model from "./Bla"
+import type Model from "./Model"
 import { Observable, Subject, firstValueFrom } from "rxjs"
 import { takeUntil, take, refCount, publishReplay } from "rxjs/operators"
 import { Query, isQuery, DocumentSnapshot, Unsubscriber } from "./types"
