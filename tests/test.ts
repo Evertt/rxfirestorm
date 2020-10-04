@@ -68,12 +68,49 @@ describe("CRUD", () => {
     const { name } = Object.getPrototypeOf(comments[0].constructor)
     expect(name).to.equal("Comment")
   })
+
+  it("returns an empty array when a subcollection is non-existent", async () => {
+    const author = new User(userData)
+    const article = new Article({ ...articleData, author })
+
+    await article.save()
+
+    const comments = await article.comments
+
+    expect(comments).to.be.an("array")
+    expect(comments.length).to.equal(0)
+  })
+
+  it("can handle subcollections of non-existent root models before saving", async () => {
+    const author = new User(userData)
+    const article = new Article({ ...articleData, author })
+
+    await article.addComment({ body: "Firsttt", author })
+    const comments = await article.comments
+
+    expect(comments).to.be.an("array")
+    expect(comments.length).to.equal(1)
+    expect(comments[0].body).to.equal("Firsttt")
+  })
+
+  it("can handle subcollections of non-existent root models after saving", async () => {
+    const author = new User(userData)
+    const article = new Article({ ...articleData, author })
+
+    await article.addComment({ body: "Firsttt", author })
+    await article.save()
+    const comments = await article.comments
+
+    expect(comments).to.be.an("array")
+    expect(comments.length).to.equal(1)
+    expect(comments[0].body).to.equal("Firsttt")
+  })
 })
 
 const port = firebaseConfig.emulators.firestore.port
 const id = process.env.PROJECT_ID
 
-after(fetch.bind(
+before(fetch.bind(
   null,
   `http://localhost:${port}/emulator/v1/projects/${id}/databases/(default)/documents`,
   { method: "DELETE" }
