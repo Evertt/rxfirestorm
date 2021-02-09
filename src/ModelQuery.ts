@@ -66,12 +66,10 @@ export function modelQuery<ModelType extends typeof Model>(
     },
   )), unsubscriber);
 
-  (myCustomMethods as any).set = debounce(data => {
-    const subscription = myCustomMethods.subscribe(doc => {
-      Object.assign(doc, data)
-      doc.save()
-      subscription.unsubscribe()
-    })
+  (myCustomMethods as any).set = debounce(async data => {
+    const doc = await myCustomMethods
+    Object.assign(doc, data)
+    doc.save()
   }, 100)
 
   // Then we create a proxy
