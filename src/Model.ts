@@ -1,23 +1,10 @@
 import { metadata } from "./relations/common"
+import { db, serverTimestamp } from "./common"
 import { difference } from "./utils"
-import type FBClient from "firebase"
 import type FBAdmin from "firebase-admin"
 import { modelQuery, ModelQuery } from "./ModelQuery"
 import { collectionQuery, CollectionQuery } from "./CollectionQuery"
 import type { Props, DocumentReference } from "./types"
-
-let fs: FBAdmin.firestore.Firestore | FBClient.firestore.Firestore
-let serverTimestamp: () => FBAdmin.firestore.FieldValue | FBClient.firestore.FieldValue
-
-export function init(
-  firestore: FBAdmin.firestore.Firestore | FBClient.firestore.Firestore,
-  serverTimestampField: () => FBAdmin.firestore.FieldValue | FBClient.firestore.FieldValue
-) {
-  fs = firestore
-  serverTimestamp = serverTimestampField
-}
-
-export const db = () => fs
 
 export default class Model {
   static collection = ""
@@ -89,7 +76,7 @@ export default class Model {
 
     if (this.id) {
       this.docRef = this.docRef
-        || fs.collection((this.constructor as any).collection).doc(this.id) as DocumentReference
+        || db().collection((this.constructor as any).collection).doc(this.id) as DocumentReference
       const doc = await this.docRef.get()
 
       if (doc.exists && updateOrReplace === "update") {
@@ -102,19 +89,19 @@ export default class Model {
         })
 
         if (Object.keys(diff).length) {
-          diff.updatedAt = serverTimestamp()
+          diff.updatedAt = serverTimestamp()()
           await this.docRef.update(diff)
         }
 
         Object.assign(this, (await this.docRef.get()).data())
       } else {
         data.createdAt = this.createdAt
-        data.updatedAt = serverTimestamp()
+        data.updatedAt = serverTimestamp()()
         await this.docRef.set(data)
       }
     } else {
-      const doc = fs.collection((this.constructor as any).collection).doc()
-      await doc.set({ ...data, createdAt: serverTimestamp(), updatedAt: null })
+      const doc = db().collection((this.constructor as any).collection).doc()
+      await doc.set({ ...data, createdAt: serverTimestamp()(), updatedAt: null })
       this.docRef = doc as FBAdmin.firestore.DocumentReference
       this.id = doc.id
     }
@@ -129,7 +116,8 @@ export default class Model {
   }
 
   toJSON<T extends typeof Model>(): Props<InstanceType<T>> {
-    const { docRef, ...rest } = this
+    let rest = Object.assign({}, this)
+    delete rest.docRef
 
     return rest as unknown as Props<InstanceType<T>>
   }

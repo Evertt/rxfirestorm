@@ -1,4 +1,5 @@
-import Model, { db } from "./Model"
+import type Model from "./Model"
+import { db } from "./common"
 import { extend, initModel, makeProxy, queryStoreCache, queryToString } from "./common"
 import { Observable, Subject } from "rxjs"
 import {

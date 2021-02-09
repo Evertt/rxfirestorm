@@ -1,5 +1,6 @@
 import WeakRef from "./WeakRef"
-import Model, { db } from "./Model"
+import type Model from "./Model"
+import { db } from "./common"
 import type FBClient from "firebase"
 import { Observable, Subject } from "rxjs"
 import { subscriptionCounts } from "./logging"

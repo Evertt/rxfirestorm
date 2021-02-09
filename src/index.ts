@@ -1,4 +1,5 @@
-import Model, { init } from "./Model"
+import Model from "./Model"
+import { init } from "./common"
 import { BelongsTo } from "./relations/BelongsTo"
 import { SubCollection } from "./relations/SubCollection"
 import type { ModelQuery, ModelStore } from "./ModelQuery"

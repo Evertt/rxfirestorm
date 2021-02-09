@@ -1,7 +1,23 @@
 import type Model from "./Model"
+import type FBClient from "firebase"
+import type FBAdmin from "firebase-admin"
 import { Observable, Subject, firstValueFrom } from "rxjs"
 import { takeUntil, take, refCount, publishReplay } from "rxjs/operators"
 import { Query, isQuery, DocumentSnapshot, Unsubscriber } from "./types"
+
+let fs: FBAdmin.firestore.Firestore | FBClient.firestore.Firestore
+let sTS: () => FBAdmin.firestore.FieldValue | FBClient.firestore.FieldValue
+
+export function init(
+  firestore: FBAdmin.firestore.Firestore | FBClient.firestore.Firestore,
+  serverTimestampField: () => FBAdmin.firestore.FieldValue | FBClient.firestore.FieldValue
+) {
+  fs = firestore
+  sTS = serverTimestampField
+}
+
+export const db = () => fs
+export const serverTimestamp = () => sTS
 
 export const queryStoreCache = new Map()
 
