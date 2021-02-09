@@ -6,7 +6,7 @@ import { Query, isQuery, DocumentSnapshot, Unsubscriber } from "./types"
 export const queryStoreCache = new Map()
 
 export function queryToString(query: Query): string {
-  const possibleKeys = ["_query", "_queryOptions", "jd"]
+  const possibleKeys = ["_query", "_queryOptions", "jd", "d_"]
 
   for (const key of possibleKeys) {
     if (key in query) {
