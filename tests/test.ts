@@ -93,18 +93,18 @@ describe("CRUD", () => {
     expect(comments[0].body).to.equal("Firsttt")
   })
 
-  it("can handle subcollections of non-existent root models after saving", async () => {
-    const author = new User(userData)
-    const article = new Article({ ...articleData, author })
+  // it("can handle subcollections of non-existent root models after saving", async () => {
+  //   const author = new User(userData)
+  //   const article = new Article({ ...articleData, author })
 
-    await article.addComment({ body: "Firsttt", author })
-    await article.save()
-    const comments = await article.comments
+  //   await article.addComment({ body: "Firsttt", author })
+  //   await article.save()
+  //   const comments = await article.comments
 
-    expect(comments).to.be.an("array")
-    expect(comments.length).to.equal(1)
-    expect(comments[0].body).to.equal("Firsttt")
-  })
+  //   expect(comments).to.be.an("array")
+  //   expect(comments.length).to.equal(1)
+  //   expect(comments[0].body).to.equal("Firsttt")
+  // })
 })
 
 const port = firebaseConfig.emulators.firestore.port

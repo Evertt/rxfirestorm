@@ -4,7 +4,7 @@ import * as firebase from "@firebase/testing"
 
 const projectId = process.env.PROJECT_ID
 
-export const clientApp = firebase.initializeTestApp({ projectId }) as FBClient.app.App
+export const clientApp = firebase.initializeTestApp({ projectId }) as unknown as FBClient.app.App
 export const clientDB = clientApp.firestore()
 
 export const adminApp = firebase.initializeAdminApp({ projectId }) as unknown as FBAdmin.app.App
