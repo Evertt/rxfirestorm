@@ -113,14 +113,14 @@ export default class Model {
     await this.docRef?.delete()
   }
 
-  toJSON<T extends typeof Model>(): Props<InstanceType<T>> {
+  toJSON<T extends typeof Model>(): Props<this> {
     let rest = Object.assign({}, this)
     delete rest.docRef
 
-    return rest as unknown as Props<InstanceType<T>>
+    return rest
   }
 
-  getStrippedData<T extends typeof Model>(): Exclude<Props<InstanceType<T>>, "id"|"docRef"|"createdAt"|"updatedAt"|"throttledSave"> {
+  getStrippedData(): Exclude<Props<this>, "id"|"docRef"|"createdAt"|"updatedAt"|"throttledSave"> {
     const data: any = { ...this }
 
     delete data.id
@@ -132,4 +132,3 @@ export default class Model {
     return data
   }
 }
-
