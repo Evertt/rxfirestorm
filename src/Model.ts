@@ -48,13 +48,7 @@ export default class Model {
   }
 
   async save(updateOrReplace: "update"|"replace" = "replace"): Promise<void> {
-    const data: any = { ...this }
-
-    delete data.id
-    delete data.docRef
-    delete data.createdAt
-    delete data.updatedAt
-    delete data.throttledSave
+    const data = this.getStrippedData() as any
 
     await Promise.all(Object.keys(data).map(async key => {
       if (data[key] == null) return
@@ -124,6 +118,18 @@ export default class Model {
     delete rest.docRef
 
     return rest as unknown as Props<InstanceType<T>>
+  }
+
+  getStrippedData<T extends typeof Model>(): Exclude<Props<InstanceType<T>>, "id"|"docRef"|"createdAt"|"updatedAt"|"throttledSave"> {
+    const data: any = { ...this }
+
+    delete data.id
+    delete data.docRef
+    delete data.createdAt
+    delete data.updatedAt
+    delete data.throttledSave
+
+    return data
   }
 }
 
