@@ -18,6 +18,9 @@ const articleData = {
   body: "With some text",
 }
 
+const sleep = async (ms: number) =>
+  await new Promise(r => setTimeout(r, ms))
+
 describe("CRUD", () => {
   it("successfully saves and fetches model", async () => {
     const newUser = new User(userData)
@@ -91,6 +94,27 @@ describe("CRUD", () => {
     expect(comments).to.be.an("array")
     expect(comments.length).to.equal(1)
     expect(comments[0].body).to.equal("Firsttt")
+  })
+
+  it("can save multiple edits in one batch", async () => {
+    const newUser = new User(userData)
+    await newUser.save()
+
+    const userQuery = User.query().first()
+    let fetchedUser = await userQuery
+    expect(fetchedUser.name).to.equal(newUser.name)
+
+    newUser.name = "Jane Doe"
+    userQuery.set(newUser)
+
+    newUser.email = "jane@doe.com"
+    userQuery.set(newUser)
+    
+    await sleep(500)
+
+    fetchedUser = await User.query().first()
+    expect(fetchedUser.name).to.equal(newUser.name)
+    expect(fetchedUser.email).to.equal(newUser.email)
   })
 
   // it("can handle subcollections of non-existent root models after saving", async () => {

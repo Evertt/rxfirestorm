@@ -8,13 +8,13 @@ import {
 } from "./types"
 import { snapshotCounts, subscriptionCounts } from "./logging"
 import WeakRef from "./WeakRef"
-import { debounce } from "lodash"
 
 export type ModelQuery<ModelType extends typeof Model> = ProxyWrapper<Query, ModelQueryMethods<ModelType>>
 export type ModelQueryMethods<ModelType extends typeof Model> = ModelStore<InstanceType<ModelType>>
 
 export type ModelStore<M extends Model> = Promise<M> & Observable<M> & Unsubscriber & {
   id: string
+  set: (data: M) => Promise<void>
 }
 
 export function modelQuery<ModelType extends typeof Model>(
@@ -64,13 +64,13 @@ export function modelQuery<ModelType extends typeof Model>(
         })
       }
     },
-  )), unsubscriber);
+  )), unsubscriber) as ModelStore<InstanceType<ModelType>>;
 
-  (myCustomMethods as any).set = debounce(async data => {
+  myCustomMethods.set = async data => {
     const doc = await myCustomMethods
     Object.assign(doc, data)
-    doc.save()
-  }, 100)
+    doc.throttledSave()
+  }
 
   // Then we create a proxy
   const proxy = makeProxy(myCustomMethods, modelQuery, query, ModelClass) as ModelQuery<ModelType>

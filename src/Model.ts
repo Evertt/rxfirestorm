@@ -5,6 +5,7 @@ import type FBAdmin from "firebase-admin"
 import { modelQuery, ModelQuery } from "./ModelQuery"
 import { collectionQuery, CollectionQuery } from "./CollectionQuery"
 import type { Props, DocumentReference } from "./types"
+import { throttle } from "./utils"
 
 export default class Model {
   static collection = ""
@@ -53,6 +54,7 @@ export default class Model {
     delete data.docRef
     delete data.createdAt
     delete data.updatedAt
+    delete data.throttledSave
 
     await Promise.all(Object.keys(data).map(async key => {
       if (data[key] == null) return
@@ -106,6 +108,8 @@ export default class Model {
       this.id = doc.id
     }
   }
+
+  throttledSave = throttle(this.save.bind(this), 100, 2000)
 
   async updateOrCreate(): Promise<void> {
     await this.save("update")
