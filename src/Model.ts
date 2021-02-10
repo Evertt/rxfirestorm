@@ -109,7 +109,7 @@ export default class Model {
     }
   }
 
-  throttledSave = throttle(this.save.bind(this), 100, 2000)
+  throttledSave = throttle(this.save.bind(this), 50, 1100)
 
   async updateOrCreate(): Promise<void> {
     await this.save("update")
