@@ -1,7 +1,7 @@
 import type Model from "./Model"
 import { db } from "./common"
 import { extend, initModel, makeProxy, queryStoreCache, queryToString } from "./common"
-import { Observable, Subject } from "rxjs"
+import { Observable, Subject, BehaviorSubject } from "rxjs"
 import {
   Query, Unsubscriber, ProxyWrapper, Snapshot,
   isQuerySnapshot, QuerySnapshot, DocumentSnapshot
@@ -14,6 +14,7 @@ export type ModelQueryMethods<ModelType extends typeof Model> = ModelStore<Insta
 
 export type ModelStore<M extends Model> = Promise<M> & Observable<M> & Unsubscriber & {
   id: string
+  saving: BehaviorSubject<boolean>
   set: (data: M) => Promise<void>
 }
 
@@ -66,10 +67,17 @@ export function modelQuery<ModelType extends typeof Model>(
     },
   )), unsubscriber) as ModelStore<InstanceType<ModelType>>;
 
+  myCustomMethods.saving = new BehaviorSubject<boolean>(false)
+
   myCustomMethods.set = async data => {
     const doc = await myCustomMethods
     Object.assign(doc, data)
-    doc.throttledSave()
+    const promise = doc.throttledSave()
+    if (promise) {
+      myCustomMethods.saving.next(true)
+      await promise
+      myCustomMethods.saving.next(false)
+    }
   }
 
   // Then we create a proxy

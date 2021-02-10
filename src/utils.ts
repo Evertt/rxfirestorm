@@ -3,7 +3,7 @@ import { transform, isEqualWith, isEqual, isObject } from "lodash"
 type Fn = (...args: any[]) => any
 
 export interface ThrottledFunc<T extends Fn> {
-  (...args: Parameters<T>): void;
+  (...args: Parameters<T>): Promise<void>|undefined;
 }
 
 export function throttle<T extends Fn>(fn: T, ...delays: number[]): ThrottledFunc<T> {
@@ -18,25 +18,33 @@ export function throttle<T extends Fn>(fn: T, ...delays: number[]): ThrottledFun
     }
 
     if (t1) {
-      return
+      return undefined
     }
 
-    t1 = setTimeout(() => {
-      fn(...args)
-      t1 = undefined
+    return new Promise<void>(resolve => {
+      t1 = setTimeout(async () => {
+        const result = fn(...args)
+        t1 = undefined
+  
+        // Increment the active delay each time
+        // and then stick with the last one.
+        // eslint-disable-next-line no-plusplus
+        activeDelay = Math.min(++activeDelay, delays.length - 1)
+  
+        // Set a 2nd `Timeout` that resets the
+        // active delay back to the first one.
+        t2 = setTimeout(() => {
+          activeDelay = 0
+          t2 = undefined
+        }, delays[activeDelay])
 
-      // Increment the active delay each time
-      // and then stick with the last one.
-      // eslint-disable-next-line no-plusplus
-      activeDelay = Math.min(++activeDelay, delays.length - 1)
-
-      // Set a 2nd `Timeout` that resets the
-      // active delay back to the first one.
-      t2 = setTimeout(() => {
-        activeDelay = 0
-        t2 = undefined
+        if (typeof result === "object" && "then" in result) {
+          await result
+        }
+        
+        resolve()
       }, delays[activeDelay])
-    }, delays[activeDelay])
+    })
   }
 }
 
