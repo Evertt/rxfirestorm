@@ -10,8 +10,11 @@ export function throttle<T extends Fn>(fn: T, ...delays: number[]): ThrottledFun
   let t1: NodeJS.Timeout|undefined
   let t2: NodeJS.Timeout|undefined
   let activeDelay = 0
+  let lastArgs: Parameters<T>
 
   return (...args: Parameters<T>) => {
+    lastArgs = args
+    
     if (t2) {
       clearTimeout(t2)
       t2 = undefined
@@ -23,7 +26,7 @@ export function throttle<T extends Fn>(fn: T, ...delays: number[]): ThrottledFun
 
     return new Promise<void>(resolve => {
       t1 = setTimeout(async () => {
-        const result = fn(...args)
+        const result = fn(...lastArgs)
         t1 = undefined
   
         // Increment the active delay each time
