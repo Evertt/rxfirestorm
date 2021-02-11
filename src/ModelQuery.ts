@@ -48,6 +48,9 @@ export function modelQuery<ModelType extends typeof Model>(
             })
             const model = initModel(ModelClass, doc)
             subscriber.next(model as any)
+            if (myCustomMethods.saving.value) {
+              myCustomMethods.saving.next(false)
+            }
           }
         },
       )
@@ -75,13 +78,7 @@ export function modelQuery<ModelType extends typeof Model>(
     }
     const doc = await myCustomMethods
     Object.assign(doc, data)
-    const result = doc.throttledSave("update")
-    if (result) {
-      await result
-      if (myCustomMethods.saving.value) {
-        myCustomMethods.saving.next(false)
-      }
-    }
+    doc.throttledSave()
   }
 
   // Then we create a proxy
