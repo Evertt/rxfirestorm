@@ -8,14 +8,14 @@ import {
 } from "./types"
 import { snapshotCounts, subscriptionCounts } from "./logging"
 import WeakRef from "./WeakRef"
-import { isEqual } from "lodash"
+import { isEqual, debounce } from "lodash"
 
 export type ModelQuery<ModelType extends typeof Model> = ProxyWrapper<Query, ModelQueryMethods<ModelType>>
 export type ModelQueryMethods<ModelType extends typeof Model> = ModelStore<InstanceType<ModelType>>
 
 export type ModelStore<M extends Model> = Promise<M> & Observable<M> & Unsubscriber & {
   id: string
-  saving: BehaviorSubject<boolean>
+  saving: BehaviorSubject<boolean|null>
   set: (data: M) => Promise<void>
 }
 
@@ -48,7 +48,7 @@ export function modelQuery<ModelType extends typeof Model>(
               [doc.ref.path]: (snapshotCounts.value[doc.ref.path] || 0) + 1,
             })
             const model = initModel(ModelClass, doc)
-            if (myCustomMethods.saving.value) {
+            if (myCustomMethods.saving.value !== false) {
               const maybeNewerModel = await myCustomMethods
               if (!isEqual(model.getStrippedData(), maybeNewerModel.getStrippedData())) {
                 Object.assign(model, maybeNewerModel.getStrippedData())
@@ -79,15 +79,19 @@ export function modelQuery<ModelType extends typeof Model>(
     },
   )), unsubscriber) as ModelStore<InstanceType<ModelType>>;
 
-  myCustomMethods.saving = new BehaviorSubject<boolean>(false)
+  myCustomMethods.saving = new BehaviorSubject<boolean|null>(false)
 
   myCustomMethods.set = async data => {
-    if (!myCustomMethods.saving.value) {
-      myCustomMethods.saving.next(true)
+    if (myCustomMethods.saving.value === false) {
+      myCustomMethods.saving.next(null)
     }
     const doc = await myCustomMethods
     Object.assign(doc, data)
-    doc.throttledSave()
+    doc.throttledSave("replace", () => {
+      if (!myCustomMethods.saving.value) {
+        myCustomMethods.saving.next(true)
+      }
+    })
   }
 
   // Then we create a proxy
