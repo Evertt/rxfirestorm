@@ -8,6 +8,7 @@ import {
 } from "./types"
 import { snapshotCounts, subscriptionCounts } from "./logging"
 import WeakRef from "./WeakRef"
+import { isEqual } from "lodash"
 
 export type ModelQuery<ModelType extends typeof Model> = ProxyWrapper<Query, ModelQueryMethods<ModelType>>
 export type ModelQueryMethods<ModelType extends typeof Model> = ModelStore<InstanceType<ModelType>>
@@ -37,7 +38,7 @@ export function modelQuery<ModelType extends typeof Model>(
       const { name } = ModelClass
 
       const unsubscribe = query.limit(1).onSnapshot(
-        (snapshot: Snapshot) => {
+        async (snapshot: Snapshot) => {
           if ((snapshot as QuerySnapshot).empty === true || (snapshot as DocumentSnapshot).exists === false) {
             subscriber.error(new Error(`${ModelClass.name} not found.`))
           } else {
@@ -47,9 +48,17 @@ export function modelQuery<ModelType extends typeof Model>(
               [doc.ref.path]: (snapshotCounts.value[doc.ref.path] || 0) + 1,
             })
             const model = initModel(ModelClass, doc)
-            subscriber.next(model as any)
             if (myCustomMethods.saving.value) {
-              myCustomMethods.saving.next(false)
+              const maybeNewerModel = await myCustomMethods
+              if (!isEqual(model.getStrippedData(), maybeNewerModel.getStrippedData())) {
+                Object.assign(model, maybeNewerModel.getStrippedData())
+                model.throttledSave()
+                subscriber.next(model as any)
+              } else {
+                myCustomMethods.saving.next(false)
+              }
+            } else {
+              subscriber.next(model as any)
             }
           }
         },

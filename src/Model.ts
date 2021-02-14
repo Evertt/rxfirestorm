@@ -5,7 +5,7 @@ import type FBAdmin from "firebase-admin"
 import { modelQuery, ModelQuery } from "./ModelQuery"
 import { collectionQuery, CollectionQuery } from "./CollectionQuery"
 import type { Props, DocumentReference } from "./types"
-import { throttle } from "./utils"
+import { debounce } from "lodash"
 
 export default class Model {
   static collection = ""
@@ -103,7 +103,7 @@ export default class Model {
     }
   }
 
-  throttledSave = throttle(this.save.bind(this), 50, 1100)
+  throttledSave = debounce(this.save.bind(this), 2000)
 
   async updateOrCreate(): Promise<void> {
     await this.save("update")
