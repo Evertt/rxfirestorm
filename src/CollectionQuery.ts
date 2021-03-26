@@ -1,8 +1,7 @@
-import WeakRef from "./WeakRef"
 import type Model from "./Model"
 import { db } from "./common"
 import type FBClient from "firebase"
-import { Observable, Subject } from "rxjs"
+import { Observable } from "rxjs"
 import { subscriptionCounts } from "./logging"
 import { modelQuery, ModelQueryMethods } from "./ModelQuery"
 import type { Query, ProxyWrapper, Unsubscriber } from "./types"
@@ -20,10 +19,16 @@ export function collectionQuery<ModelType extends typeof Model>(
   ModelClass: ModelType,
   query: Query = db().collection(ModelClass.collection) as Query,
 ): CollectionQuery<ModelType> {
-  const unsubscriber = new Subject<void>()
+  const key = queryToString(query)
+
+  if (queryStoreCache.has(key)) {
+    return queryStoreCache.get(key)
+  }
 
   const myCustomMethods = extend((new Observable<InstanceType<ModelType>[]>(
     subscriber => {
+      queryStoreCache.set(key, proxy)
+
       const unsubscribe = (query as FBClient.firestore.Query).onSnapshot(
         snapshot => subscriber.next(
           snapshot.docs.map(
@@ -40,13 +45,14 @@ export function collectionQuery<ModelType extends typeof Model>(
 
       return () => {
         unsubscribe()
+        queryStoreCache.delete(key)
         subscriptionCounts.next({
           ...subscriptionCounts.value,
           [name]: (subscriptionCounts.value[name] || 0) - 1,
         })
       }
     },
-  )), unsubscriber) as CollectionQueryMethods<ModelType>
+  ))) as CollectionQueryMethods<ModelType>
 
   myCustomMethods.first = () => modelQuery(ModelClass, query)
   myCustomMethods.add = async model => {
@@ -59,13 +65,6 @@ export function collectionQuery<ModelType extends typeof Model>(
 
   // Then we create a proxy
   const proxy = makeProxy(myCustomMethods, collectionQuery, query, ModelClass) as CollectionQuery<ModelType>
-
-  const key = queryToString(query)
-  const cachedQueryStore = queryStoreCache.get(key)
-  if (cachedQueryStore && cachedQueryStore.deref()) {
-    return cachedQueryStore.deref()
-  }
-  queryStoreCache.set(key, new WeakRef(proxy))
 
   return proxy
 }

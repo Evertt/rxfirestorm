@@ -1,14 +1,13 @@
 import type Model from "./Model"
 import { db } from "./common"
 import { extend, initModel, makeProxy, queryStoreCache, queryToString } from "./common"
-import { Observable, Subject, BehaviorSubject } from "rxjs"
+import { Observable, BehaviorSubject } from "rxjs"
 import {
   Query, Unsubscriber, ProxyWrapper, Snapshot,
   isQuerySnapshot, QuerySnapshot, DocumentSnapshot
 } from "./types"
 import { snapshotCounts, subscriptionCounts } from "./logging"
-import WeakRef from "./WeakRef"
-import { isEqual, debounce } from "lodash"
+import { isEqual } from "lodash"
 
 export type ModelQuery<ModelType extends typeof Model> = ProxyWrapper<Query, ModelQueryMethods<ModelType>>
 export type ModelQueryMethods<ModelType extends typeof Model> = ModelStore<InstanceType<ModelType>>
@@ -31,10 +30,17 @@ export function modelQuery<ModelType extends typeof Model>(
     (query as any).limit = () => query
   }
 
-  const unsubscriber = new Subject<void>()
+  const key = typeof queryOrId === "string"
+    ? `${ModelClass.collection}/${queryOrId}`
+    : queryToString(query.limit(1))
+
+  if (queryStoreCache.has(key)) {
+    return queryStoreCache.get(key)
+  }
 
   const myCustomMethods = extend((new Observable<InstanceType<ModelType>>(
     subscriber => {
+      queryStoreCache.set(key, proxy)
       const { name } = ModelClass
 
       const unsubscribe = query.limit(1).onSnapshot(
@@ -71,13 +77,14 @@ export function modelQuery<ModelType extends typeof Model>(
 
       return () => {
         unsubscribe()
+        queryStoreCache.delete(key)
         subscriptionCounts.next({
           ...subscriptionCounts.value,
           [name]: (subscriptionCounts.value[name] || 0) - 1,
         })
       }
     },
-  )), unsubscriber) as ModelStore<InstanceType<ModelType>>;
+  ))) as ModelStore<InstanceType<ModelType>>;
 
   myCustomMethods.saving = new BehaviorSubject<boolean|null>(false)
 
@@ -96,16 +103,6 @@ export function modelQuery<ModelType extends typeof Model>(
 
   // Then we create a proxy
   const proxy = makeProxy(myCustomMethods, modelQuery, query, ModelClass) as ModelQuery<ModelType>
-
-  const key = typeof queryOrId === "string"
-    ? `${ModelClass.collection}/${queryOrId}`
-    : queryToString(query.limit(1))
-
-  const cachedQueryStore = queryStoreCache.get(key)
-  if (cachedQueryStore && cachedQueryStore.deref()) {
-    return cachedQueryStore.deref()
-  }
-  queryStoreCache.set(key, new WeakRef(proxy))
 
   return proxy
 }

@@ -114,7 +114,7 @@ export default class Model {
     await this.docRef?.delete()
   }
 
-  toJSON<T extends typeof Model>(): Props<this> {
+  toJSON(): Props<this> {
     let rest = Object.assign({}, this)
     delete rest.docRef
 

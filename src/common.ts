@@ -2,7 +2,7 @@ import type Model from "./Model"
 import type FBClient from "firebase"
 import type FBAdmin from "firebase-admin"
 import { Observable, Subject, firstValueFrom } from "rxjs"
-import { takeUntil, take, refCount, publishReplay } from "rxjs/operators"
+import { takeUntil, take, shareReplay } from "rxjs/operators"
 import { Query, isQuery, DocumentSnapshot, Unsubscriber } from "./types"
 
 let fs: FBAdmin.firestore.Firestore | FBClient.firestore.Firestore
@@ -86,18 +86,14 @@ export function makeProxy<ModelType extends typeof Model>(customMethods: any, cb
   })
 }
 
-export const extend = <T>(observable: Observable<T>, unsubscriber?: Subject<void>): Observable<T> & Promise<T> & Unsubscriber => {
-  const combined = observable
-    .pipe(publishReplay(1), refCount())
-    .pipe(unsubscriber && typeof window !== "undefined" ? takeUntil(unsubscriber) : take(1)) as Observable<T> & Promise<T> & Unsubscriber
+export const extend = <T>(observable: Observable<T>): Observable<T> & Promise<T> => {
+  const combined = observable.pipe(typeof window === "undefined"
+    ? take(1) : shareReplay({ bufferSize: 1, refCount: true })
+  )  as Observable<T> & Promise<T>
 
   combined.then = (onFulfilled, onRejected) => firstValueFrom(combined).then(onFulfilled, onRejected)
   combined.catch = onRejected => firstValueFrom(combined).catch(onRejected)
   combined.finally = onFinally => firstValueFrom(combined).finally(onFinally)
-  combined.unsubscribe = () => {
-    unsubscriber?.next()
-    unsubscriber?.complete()
-  }
 
   return combined
 }
