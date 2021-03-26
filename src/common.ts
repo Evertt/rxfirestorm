@@ -1,7 +1,7 @@
 import type Model from "./Model"
 import type FBClient from "firebase"
 import type FBAdmin from "firebase-admin"
-import { Observable, firstValueFrom } from "rxjs"
+import { Observable, firstValueFrom, MonoTypeOperatorFunction, observable } from "rxjs"
 import { shareReplay } from "rxjs/operators"
 import { Query, isQuery, DocumentSnapshot } from "./types"
 
@@ -31,6 +31,32 @@ export function queryToString(query: Query): string {
   }
 
   throw Error("Query in query could not be found")
+}
+
+function delayedUnsubscribe<T>(ms: number): MonoTypeOperatorFunction<T> {
+  const timers = new Map()
+  return source => new Observable<T>(subscriber => {
+    clearTimeout(timers.get(subscriber))
+    timers.delete(subscriber)
+
+    const subscription = source.subscribe({
+      next(value) {
+        subscriber.next(value);
+      },
+      error(error) {
+        subscriber.error(error);
+      },
+      complete() {
+        subscriber.complete();
+      }
+    })
+
+    return () => {
+      timers.set(subscriber, setTimeout(() => {
+        subscription?.unsubscribe()
+      }, ms))
+    }
+  })
 }
 
 export function initModel<ModelType extends typeof Model>(ModelClass: ModelType, doc: DocumentSnapshot): InstanceType<ModelType> {
@@ -88,6 +114,7 @@ export function makeProxy<ModelType extends typeof Model>(customMethods: any, cb
 
 export const extend = <T>(observable: Observable<T>): Observable<T> & Promise<T> => {
   const combined = observable.pipe(
+    delayedUnsubscribe(1000),
     shareReplay({ bufferSize: 1, refCount: true })
   )  as Observable<T> & Promise<T>
 
