@@ -1,9 +1,9 @@
 import type Model from "./Model"
 import type FBClient from "firebase"
 import type FBAdmin from "firebase-admin"
-import { Observable, Subject, firstValueFrom } from "rxjs"
-import { takeUntil, take, shareReplay } from "rxjs/operators"
-import { Query, isQuery, DocumentSnapshot, Unsubscriber } from "./types"
+import { Observable, firstValueFrom } from "rxjs"
+import { shareReplay } from "rxjs/operators"
+import { Query, isQuery, DocumentSnapshot } from "./types"
 
 let fs: FBAdmin.firestore.Firestore | FBClient.firestore.Firestore
 let sTS: () => FBAdmin.firestore.FieldValue | FBClient.firestore.FieldValue
@@ -87,8 +87,8 @@ export function makeProxy<ModelType extends typeof Model>(customMethods: any, cb
 }
 
 export const extend = <T>(observable: Observable<T>): Observable<T> & Promise<T> => {
-  const combined = observable.pipe(typeof window === "undefined"
-    ? take(1) : shareReplay({ bufferSize: 1, refCount: true })
+  const combined = observable.pipe(
+    shareReplay({ bufferSize: 1, refCount: true })
   )  as Observable<T> & Promise<T>
 
   combined.then = (onFulfilled, onRejected) => firstValueFrom(combined).then(onFulfilled, onRejected)

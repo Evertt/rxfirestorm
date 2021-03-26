@@ -5,7 +5,6 @@ import type FBAdmin from "firebase-admin"
 import { modelQuery, ModelQuery } from "./ModelQuery"
 import { collectionQuery, CollectionQuery } from "./CollectionQuery"
 import type { Props, DocumentReference } from "./types"
-import { debounce } from "lodash"
 
 export default class Model {
   static collection = ""
@@ -104,8 +103,6 @@ export default class Model {
     }
   }
 
-  throttledSave = debounce(this.save.bind(this), 2000)
-
   async updateOrCreate(): Promise<void> {
     await this.save("update")
   }
@@ -121,14 +118,13 @@ export default class Model {
     return rest
   }
 
-  getStrippedData(): Exclude<Props<this>, "id"|"docRef"|"createdAt"|"updatedAt"|"throttledSave"> {
+  getStrippedData(): Exclude<Props<this>, "id"|"docRef"|"createdAt"|"updatedAt"> {
     const data: any = { ...this }
 
     delete data.id
     delete data.docRef
     delete data.createdAt
     delete data.updatedAt
-    delete data.throttledSave
 
     return data
   }
