@@ -34,25 +34,25 @@ export function queryToString(query: Query): string {
 }
 
 function delayedUnsubscribe<T>(ms: number): MonoTypeOperatorFunction<T> {
-  const timers = new Map()
+  const unsubTimers = new Map()
   return source => new Observable<T>(subscriber => {
-    clearTimeout(timers.get(subscriber))
-    timers.delete(subscriber)
+    clearTimeout(unsubTimers.get(subscriber))
+    unsubTimers.delete(subscriber)
 
     const subscription = source.subscribe({
       next(value) {
-        subscriber.next(value);
+        !unsubTimers.has(subscriber) && subscriber.next(value);
       },
       error(error) {
-        subscriber.error(error);
+        !unsubTimers.has(subscriber) && subscriber.error(error);
       },
       complete() {
-        subscriber.complete();
+        !unsubTimers.has(subscriber) && subscriber.complete();
       }
     })
 
     return () => {
-      timers.set(subscriber, setTimeout(() => {
+      unsubTimers.set(subscriber, setTimeout(() => {
         subscription?.unsubscribe()
       }, ms))
     }
@@ -114,8 +114,8 @@ export function makeProxy<ModelType extends typeof Model>(customMethods: any, cb
 
 export const extend = <T>(observable: Observable<T>): Observable<T> & Promise<T> => {
   const combined = observable.pipe(
+    shareReplay({ bufferSize: 1, refCount: true }),
     delayedUnsubscribe(1000),
-    shareReplay({ bufferSize: 1, refCount: true })
   )  as Observable<T> & Promise<T>
 
   combined.then = (onFulfilled, onRejected) => firstValueFrom(combined).then(onFulfilled, onRejected)
