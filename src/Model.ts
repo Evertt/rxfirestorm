@@ -46,8 +46,7 @@ export default class Model {
     return modelQuery(this as any, id)
   }
 
-  async save(updateOrReplace: "update"|"replace" = "replace", saving?: Function): Promise<void> {
-    if (saving) saving()
+  async save(updateOrReplace: "update"|"replace" = "replace"): Promise<void> {
     const data = this.getStrippedData() as any
 
     await Promise.all(Object.keys(data).map(async key => {
