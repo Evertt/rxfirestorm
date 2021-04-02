@@ -11,6 +11,7 @@ import { collection, doc, deleteDoc, getDoc, updateDoc, setDoc, serverTimestamp 
 export default class Model {
   static collection = ""
 
+  // Should this be private?
   public docRef?: DocumentReference
   public id?: string
   public createdAt: Date

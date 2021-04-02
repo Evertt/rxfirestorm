@@ -19,7 +19,7 @@ export const countSnapshot = (name: string, n = 1) =>
   })
 
 // This is here for debug purposes.
-// You know, when you get a memory leak.
+// It helps to gain insight of potential memory leaks.
 if (dev) {
   if (typeof window !== "undefined") {
     snapshotCounts.subscribe(counts => {
