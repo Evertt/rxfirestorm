@@ -12,7 +12,7 @@
     "sourceMap": true,
     "strict": true,
     "declaration": true,
-    "outDir": "dist",
+    "outDir": "dist/esm",
   },
   "include": [
     "src",

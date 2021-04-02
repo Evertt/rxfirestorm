@@ -1,18 +1,18 @@
 {
   "name": "rxfirestorm",
-  "version": "0.2.0",
-  "type": "module",
+  "version": "0.2.1",
   "description": "A Firestore ORM based on RxJS and TypeScript",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "prepublish": "tsc",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
   "scripts": {
     "emulator": "firebase --project=$PROJECT_ID emulators:start --only firestore",
     "mocha": "mocha -r ts-node/register tests/**/test.ts",
     "mocha:watch": "mocha -r ts-node/register tests/**/test.ts --watch -R min --watch-files src,tests",
     "test": "PROJECT_ID=rxfirestorm run-p emulator mocha",
     "test:watch": "PROJECT_ID=rxfirestorm run-p emulator mocha:watch",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json",
+    "prepublish": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json",
     "build:watch": "tsc --watch"
   },
   "repository": {
@@ -49,5 +49,8 @@
     "node-fetch": "^2.6.1",
     "npm-run-all": "^4.1.5",
     "ts-node": "^9.1.1"
-  }
+  },
+  "files": [
+    "dist/"
+  ]
 }
