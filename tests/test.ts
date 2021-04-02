@@ -4,9 +4,9 @@ import fetch from "node-fetch"
 import User from "./models/User"
 import Article from "./models/Article"
 import firebaseConfig from "../firebase.json"
-import { clientDB, serverTimestamp } from "./firebase"
+import { db } from "./firebase"
 
-init(clientDB, serverTimestamp)
+init(db)
 
 const userData = {
   email: "john@example.com",
@@ -18,8 +18,8 @@ const articleData = {
   body: "With some text",
 }
 
-const sleep = async (ms: number) =>
-  await new Promise(r => setTimeout(r, ms))
+const sleep = (ms: number) =>
+  new Promise(r => setTimeout(r, ms))
 
 describe("CRUD", () => {
   it("successfully saves and fetches model", async () => {

@@ -1,6 +1,7 @@
 {
   "name": "rxfirestorm",
-  "version": "0.1.29",
+  "version": "0.2.0",
+  "type": "module",
   "description": "A Firestore ORM based on RxJS and TypeScript",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -32,10 +33,9 @@
   "homepage": "https://github.com/Evertt/rxfirestorm#readme",
   "dependencies": {
     "@types/lodash": "^4.14.168",
-    "firebase": "^8.2.6",
-    "firebase-admin": "^9.4.2",
+    "firebase": "^0.900.20",
     "lodash": "^4.17.20",
-    "rxjs": "^7.0.0-beta.13",
+    "rxjs": "^7.0.0-beta.15",
     "typescript": "^4.1.3"
   },
   "devDependencies": {

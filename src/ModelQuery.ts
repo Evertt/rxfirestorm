@@ -1,15 +1,16 @@
 import type Model from "./Model"
-import { db } from "./common"
-import { extend, initModel, makeProxy, queryStoreCache, queryToString } from "./common"
-import { Observable, BehaviorSubject } from "rxjs"
-import {
-  Query, Unsubscriber, ProxyWrapper, Snapshot,
-  isQuerySnapshot, QuerySnapshot, DocumentSnapshot
-} from "./types"
-import { snapshotCounts, subscriptionCounts } from "./logging"
-import { isEqual, debounce } from "lodash"
+import type { QueryProxy } from "./QueryProxy"
+import type { Unsubscriber, ProxyWrapper, Props } from "./types"
+import type { DocumentReference, DocumentSnapshot } from "firebase/firestore"
 
-export type ModelQuery<ModelType extends typeof Model> = ProxyWrapper<Query, ModelQueryMethods<ModelType>>
+import { db } from "./common"
+import { isEqual, debounce } from "lodash"
+import { Observable, BehaviorSubject } from "rxjs"
+import { countSnapshot, countSubscription } from "./logging"
+import { extend, initModel, makeProxy, queryStoreCache, queryToString } from "./common"
+import { collection, doc, limit, query, onSnapshot, QuerySnapshot, Query } from "firebase/firestore"
+
+export type ModelQuery<ModelType extends typeof Model> = ProxyWrapper<QueryProxy, ModelQueryMethods<ModelType>>
 export type ModelQueryMethods<ModelType extends typeof Model> = ModelStore<InstanceType<ModelType>>
 
 export type ModelStore<M extends Model> = Promise<M> & Observable<M> & Unsubscriber & {
@@ -18,21 +19,31 @@ export type ModelStore<M extends Model> = Promise<M> & Observable<M> & Unsubscri
   set: (data: M) => Promise<void>
 }
 
+export function modelQuery<ModelType extends typeof Model>(ModelClass: ModelType): ModelQuery<ModelType>
+export function modelQuery<ModelType extends typeof Model>(ModelClass: ModelType, id: string): ModelQuery<ModelType>
+export function modelQuery<ModelType extends typeof Model>(ModelClass: ModelType, query: Query): ModelQuery<ModelType>
 export function modelQuery<ModelType extends typeof Model>(
-  ModelClass: ModelType,
-  queryOrId: Query | string = db().collection(ModelClass.collection) as Query,
+  ModelClass: ModelType, queryOrId?: Query | string,
 ): ModelQuery<ModelType> {
-  const query = typeof queryOrId === "string"
-    ? db().collection(ModelClass.collection).doc(queryOrId) as unknown as Query
-    : queryOrId
+  queryOrId ??= collection(db(), ModelClass.collection)
 
-  if (query.limit === undefined) {
-    (query as any).limit = () => query
+  type D = Props<InstanceType<ModelType>>
+  let queryOrRef: Query<D> | DocumentReference<D>
+  let key: string
+
+  switch (typeof queryOrId) {
+    case "undefined":
+      queryOrRef = query(collection(db(), ModelClass.collection), limit(1))
+      key = queryToString(queryOrRef)
+      break;
+    case "string":
+      key = `${ModelClass.collection}/${queryOrId}`
+      queryOrRef = doc(collection(db(), ModelClass.collection), queryOrId)
+      break;
+    default:
+      queryOrRef = query(queryOrId, limit(1))
+      key = queryToString(queryOrRef)
   }
-
-  const key = typeof queryOrId === "string"
-    ? `${ModelClass.collection}/${queryOrId}`
-    : queryToString(query.limit(1))
 
   if (queryStoreCache.has(key)) {
     return queryStoreCache.get(key)
@@ -43,45 +54,44 @@ export function modelQuery<ModelType extends typeof Model>(
       queryStoreCache.set(key, proxy)
       const { name } = ModelClass
 
-      const unsubscribe = query.limit(1).onSnapshot(
-        async (snapshot: Snapshot) => {
-          if ((snapshot as QuerySnapshot).empty === true || (snapshot as DocumentSnapshot).exists === false) {
-            subscriber.error(new Error(`${ModelClass.name} not found.`))
-          } else {
-            const doc = (isQuerySnapshot(snapshot) ? snapshot.docs[0] : snapshot)
-            snapshotCounts.next({
-              ...snapshotCounts.value,
-              [doc.ref.path]: (snapshotCounts.value[doc.ref.path] || 0) + 1,
-            })
-            const model = initModel(ModelClass, doc)
-            if (myCustomMethods.saving.value !== false) {
-              const maybeNewerModel = await myCustomMethods
-              if (!isEqual(model.getStrippedData(), maybeNewerModel.getStrippedData())) {
-                Object.assign(model, maybeNewerModel.getStrippedData())
-                throttledSave(model)
-                subscriber.next(model as any)
-              } else {
-                myCustomMethods.saving.next(false)
-              }
-            } else {
-              subscriber.next(model as any)
-            }
-          }
-        },
-      )
+      const handleSnapshot = async (snapshot: QuerySnapshot | DocumentSnapshot) => {
+        snapshot = snapshot instanceof QuerySnapshot ? snapshot.docs[0] : snapshot
 
-      subscriptionCounts.next({
-        ...subscriptionCounts.value,
-        [name]: (subscriptionCounts.value[name] || 0) + 1,
-      })
+        if (!snapshot || !snapshot.exists()) {
+          return subscriber.error(new Error(`${ModelClass.name} not found.`))
+        }
+
+        countSnapshot(snapshot.ref.path)
+        const model = initModel(ModelClass, snapshot)
+
+        if (myCustomMethods.saving.value === false) {
+          return subscriber.next(model)
+        }
+
+        const maybeNewerModel = await myCustomMethods
+        const exclude = ["id", "createdAt", "updatedAt"]
+        const incomingData = model.toJSON({ exclude } as any)
+        const maybeNewerData = maybeNewerModel.toJSON({ exclude } as any)
+
+        if (isEqual(incomingData, maybeNewerData)) {
+          return myCustomMethods.saving.next(false)
+        }
+
+        Object.assign(model, maybeNewerData)
+        throttledSave(model)
+        subscriber.next(model)
+      }
+
+      const unsubscribe = queryOrRef instanceof Query
+        ? onSnapshot(queryOrRef, handleSnapshot)
+        : onSnapshot(queryOrRef, handleSnapshot)
+
+      countSubscription(name)
 
       return () => {
         unsubscribe()
         queryStoreCache.delete(key)
-        subscriptionCounts.next({
-          ...subscriptionCounts.value,
-          [name]: (subscriptionCounts.value[name] || 0) - 1,
-        })
+        countSubscription(name, -1)
       }
     },
   ))) as ModelStore<InstanceType<ModelType>>;
@@ -103,7 +113,7 @@ export function modelQuery<ModelType extends typeof Model>(
   }
 
   // Then we create a proxy
-  const proxy = makeProxy(myCustomMethods, modelQuery, query, ModelClass) as ModelQuery<ModelType>
+  const proxy = makeProxy(myCustomMethods, modelQuery, queryOrRef as Query, ModelClass) as ModelQuery<ModelType>
 
   return proxy
 }

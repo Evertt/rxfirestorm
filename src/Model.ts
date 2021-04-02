@@ -1,10 +1,12 @@
-import { metadata } from "./relations/common"
-import { db, serverTimestamp } from "./common"
+import type { Props } from "./types"
+import type { DocumentReference } from "firebase/firestore"
+
+import { db } from "./common"
 import { difference } from "./utils"
-import type FBAdmin from "firebase-admin"
+import { metadata } from "./relations/common"
 import { modelQuery, ModelQuery } from "./ModelQuery"
 import { collectionQuery, CollectionQuery } from "./CollectionQuery"
-import type { Props, DocumentReference } from "./types"
+import { collection, doc, deleteDoc, getDoc, updateDoc, setDoc, serverTimestamp } from "firebase/firestore"
 
 export default class Model {
   static collection = ""
@@ -47,7 +49,7 @@ export default class Model {
   }
 
   async save(updateOrReplace: "update"|"replace" = "replace"): Promise<void> {
-    const data = this.getStrippedData() as any
+    const data = this.toJSON({ exclude: ["id", "createdAt", "updatedAt"] } as any) as any
 
     await Promise.all(Object.keys(data).map(async key => {
       if (data[key] == null) return
@@ -71,11 +73,11 @@ export default class Model {
 
     if (this.id) {
       this.docRef = this.docRef
-        || db().collection((this.constructor as any).collection).doc(this.id) as DocumentReference
-      const doc = await this.docRef.get()
+        || doc(collection(db(), (this.constructor as any).collection), this.id)
+      const document = await getDoc(this.docRef)
 
-      if (doc.exists && updateOrReplace === "update") {
-        const diff = difference(data, doc.data())
+      if (document.exists() && updateOrReplace === "update") {
+        const diff = difference(data, document.data())
 
         Object.keys(diff).forEach(key => {
           if (diff[key] === undefined) {
@@ -84,21 +86,21 @@ export default class Model {
         })
 
         if (Object.keys(diff).length) {
-          diff.updatedAt = serverTimestamp()()
-          await this.docRef.update(diff)
+          diff.updatedAt = serverTimestamp()
+          await updateDoc(this.docRef, diff)
         }
 
-        Object.assign(this, (await this.docRef.get()).data())
+        Object.assign(this, (await getDoc(this.docRef)).data())
       } else {
         data.createdAt = this.createdAt
-        data.updatedAt = serverTimestamp()()
-        await this.docRef.set(data)
+        data.updatedAt = serverTimestamp()
+        await setDoc(this.docRef, data)
       }
     } else {
-      const doc = db().collection((this.constructor as any).collection).doc()
-      await doc.set({ ...data, createdAt: serverTimestamp()(), updatedAt: null })
-      this.docRef = doc as FBAdmin.firestore.DocumentReference
-      this.id = doc.id
+      const document = doc(collection(db(), (this.constructor as any).collection))
+      await setDoc(document, { ...data, createdAt: serverTimestamp(), updatedAt: null })
+      this.docRef = document
+      this.id = document.id
     }
   }
 
@@ -107,23 +109,29 @@ export default class Model {
   }
 
   async delete(): Promise<void> {
-    await this.docRef?.delete()
+    this.docRef && await deleteDoc(this.docRef)
   }
 
-  toJSON(): Props<this> {
-    let rest = Object.assign({}, this)
-    delete rest.docRef
+  toJSON<T extends Array<keyof Props<this>>>(args: { exclude: T }): Omit<Props<this>, T[number]>
+  toJSON<T extends Array<keyof Props<this>>>(args: { include: T }): Pick<Props<this>, T[number]>
+  toJSON<T extends Array<keyof Props<this>>>(args: { exclude: T } | { include: T }): Omit<Props<this>, T[number]> | Pick<Props<this>, T[number]> {
+    let data: any
 
-    return rest
-  }
+    if ("include" in args) {
+      for (const key of args.include) {
+        data[key] = this[key]
+      }
+    }
 
-  getStrippedData(): Exclude<Props<this>, "id"|"docRef"|"createdAt"|"updatedAt"> {
-    const data: any = { ...this }
+    if ("exclude" in args) {
+      data = { ...this }
 
-    delete data.id
+      for (const key of args.exclude) {
+        delete data[key]
+      }
+    }
+
     delete data.docRef
-    delete data.createdAt
-    delete data.updatedAt
 
     return data
   }

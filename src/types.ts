@@ -1,31 +1,11 @@
-import type FBClient from "firebase"
-import type FBAdmin from "firebase-admin"
 import type { CollectionQuery } from "./CollectionQuery"
+import { Query as BaseQuery, where, limit, orderBy, DocumentData, query } from "firebase/firestore"
 
-export type Query = FBAdmin.firestore.Query | FBClient.firestore.Query
-export type QuerySnapshot = FBAdmin.firestore.QuerySnapshot | FBClient.firestore.QuerySnapshot
-export type DocumentSnapshot = FBAdmin.firestore.DocumentSnapshot | FBClient.firestore.DocumentSnapshot
-export type QueryDocumentSnapshot = FBAdmin.firestore.QueryDocumentSnapshot | FBClient.firestore.QueryDocumentSnapshot
-export type Snapshot = QuerySnapshot | DocumentSnapshot
-export type DocumentReference = FBAdmin.firestore.DocumentReference | FBClient.firestore.DocumentReference
-export type CollectionReference = FBAdmin.firestore.CollectionReference | FBClient.firestore.CollectionReference
+type NonFunctionPropertyNames<T> = {
+  [K in keyof T]: T[K] extends Function ? never : K;
+}[keyof T];
 
-export function isQuery(possibleQuery: any): possibleQuery is Query {
-  return "where" in possibleQuery
-}
-
-export function isQuerySnapshot(possibleQuerySnapshot: Snapshot): possibleQuerySnapshot is QuerySnapshot {
-  return "docs" in possibleQuerySnapshot
-}
-
-export type ExcludeFunctionKeys<T> = Pick<
-  T,
-  { [K in keyof T]: T[K] extends CollectionQuery<any> | ((...args: any) => any) ? never : K }[keyof T]
->
-
-export type Props<T> = {
-  [K in keyof ExcludeFunctionKeys<T>]: T[K]
-}
+export type Props<T> = Pick<T, NonFunctionPropertyNames<T>>;
 
 export type PropsRequired<T, K extends keyof Props<T>> = Partial<Props<T>> & Required<Pick<Props<T>, K>>
 export type PropsOptional<T, K extends keyof Props<T>> = Props<T> & Partial<Pick<Props<T>, K>>
@@ -37,3 +17,17 @@ export type ProxyWrapper<T, U> = {
 } & U
 
 export type Unsubscriber = { unsubscribe(): void }
+
+export class Query<T = DocumentData> extends BaseQuery<T> {
+  where(...args: Parameters<typeof where>): this {
+    return query(this, where(...args)) as this
+  }
+  
+  limit(...args: Parameters<typeof limit>): this {
+    return query(this, limit(...args)) as this
+  }
+
+  orderBy(...args: Parameters<typeof orderBy>): this {
+    return query(this, orderBy(...args)) as this
+  }
+}

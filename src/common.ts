@@ -1,23 +1,19 @@
 import type Model from "./Model"
-import type FBClient from "firebase"
-import type FBAdmin from "firebase-admin"
-import { Observable, firstValueFrom, MonoTypeOperatorFunction, observable } from "rxjs"
+import type { QueryProxy } from "./QueryProxy"
+import type { FirebaseFirestore } from "firebase/firestore"
+
+import { proxyQuery } from "./QueryProxy"
 import { shareReplay } from "rxjs/operators"
-import { Query, isQuery, DocumentSnapshot } from "./types"
+import { Query, DocumentSnapshot } from "firebase/firestore"
+import { Observable, firstValueFrom, MonoTypeOperatorFunction } from "rxjs"
 
-let fs: FBAdmin.firestore.Firestore | FBClient.firestore.Firestore
-let sTS: () => FBAdmin.firestore.FieldValue | FBClient.firestore.FieldValue
+let fs: FirebaseFirestore
 
-export function init(
-  firestore: FBAdmin.firestore.Firestore | FBClient.firestore.Firestore,
-  serverTimestampField: () => FBAdmin.firestore.FieldValue | FBClient.firestore.FieldValue
-) {
+export function init(firestore: FirebaseFirestore) {
   fs = firestore
-  sTS = serverTimestampField
 }
 
 export const db = () => fs
-export const serverTimestamp = () => sTS
 
 export const queryStoreCache = new Map()
 
@@ -33,7 +29,7 @@ export function queryToString(query: Query): string {
   throw Error("Query in query could not be found")
 }
 
-function delayedUnsubscribe<T>(ms: number): MonoTypeOperatorFunction<T> {
+function delayedUnsubscribe<T>(timeout: number): MonoTypeOperatorFunction<T> {
   const unsubTimers = new Map()
   return source => new Observable<T>(subscriber => {
     clearTimeout(unsubTimers.get(subscriber))
@@ -54,7 +50,8 @@ function delayedUnsubscribe<T>(ms: number): MonoTypeOperatorFunction<T> {
     return () => {
       unsubTimers.set(subscriber, setTimeout(() => {
         subscription?.unsubscribe()
-      }, ms))
+        unsubTimers.delete(subscriber)
+      }, timeout))
     }
   })
 }
@@ -75,7 +72,9 @@ export function initModel<ModelType extends typeof Model>(ModelClass: ModelType,
   }) as InstanceType<ModelType>
 }
 
-export function makeProxy<ModelType extends typeof Model>(customMethods: any, cb: any, query: Query, ModelClass: ModelType) {
+export function makeProxy<ModelType extends typeof Model>(customMethods: any, cb: any, query: Query | QueryProxy, ModelClass: ModelType) {
+  query = proxyQuery(query)
+
   return new Proxy(customMethods, {
     get(target, prop, receiver) {
       // If the requested prop is in our custom methods thingy,
@@ -96,7 +95,7 @@ export function makeProxy<ModelType extends typeof Model>(customMethods: any, cb
           const result = queryMethod(...args)
 
           // And then checks if the result is another query object.
-          if (isQuery(result)) {
+          if (result instanceof Query) {
             // If it is, then wrap that in another Collection type
             return cb(ModelClass, result)
           }
@@ -115,7 +114,7 @@ export function makeProxy<ModelType extends typeof Model>(customMethods: any, cb
 export const extend = <T>(observable: Observable<T>): Observable<T> & Promise<T> => {
   const combined = observable.pipe(
     shareReplay({ bufferSize: 1, refCount: true }),
-    delayedUnsubscribe(1000),
+    delayedUnsubscribe(typeof window === "undefined" ? 60_000 : 1_000),
   )  as Observable<T> & Promise<T>
 
   combined.then = (onFulfilled, onRejected) => firstValueFrom(combined).then(onFulfilled, onRejected)

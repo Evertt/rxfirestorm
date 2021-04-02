@@ -1,13 +1,16 @@
 import type Model from "./Model"
+import type { QueryProxy } from "./QueryProxy"
+import type { ProxyWrapper, Unsubscriber } from "./types"
+import type { CollectionReference } from "firebase/firestore"
+
 import { db } from "./common"
-import type FBClient from "firebase"
 import { Observable } from "rxjs"
-import { subscriptionCounts } from "./logging"
+import { countSubscription } from "./logging"
 import { modelQuery, ModelQueryMethods } from "./ModelQuery"
-import type { Query, ProxyWrapper, Unsubscriber } from "./types"
+import { collection, onSnapshot, Query } from "firebase/firestore"
 import { initModel, extend, makeProxy, queryToString, queryStoreCache } from "./common"
 
-export type CollectionQuery<ModelType extends typeof Model> = ProxyWrapper<Query, CollectionQueryMethods<ModelType>>
+export type CollectionQuery<ModelType extends typeof Model> = ProxyWrapper<QueryProxy, CollectionQueryMethods<ModelType>>
 type CollectionQueryMethods<ModelType extends typeof Model> = CollectionStore<InstanceType<ModelType>> & {
   first(): ModelQueryMethods<ModelType>
   add(model: ConstructorParameters<ModelType>[0]): Promise<void>
@@ -17,7 +20,7 @@ export type CollectionStore<M extends Model> = Promise<M[]> & Observable<M[]> & 
 
 export function collectionQuery<ModelType extends typeof Model>(
   ModelClass: ModelType,
-  query: Query = db().collection(ModelClass.collection) as Query,
+  query: Query | CollectionReference = collection(db(), ModelClass.collection),
 ): CollectionQuery<ModelType> {
   const key = queryToString(query)
 
@@ -29,7 +32,7 @@ export function collectionQuery<ModelType extends typeof Model>(
     subscriber => {
       queryStoreCache.set(key, proxy)
 
-      const unsubscribe = (query as FBClient.firestore.Query).onSnapshot(
+      const unsubscribe = onSnapshot(query,
         snapshot => subscriber.next(
           snapshot.docs.map(
             doc => initModel(ModelClass, doc),
@@ -38,18 +41,12 @@ export function collectionQuery<ModelType extends typeof Model>(
       )
 
       const { name } = ModelClass
-      subscriptionCounts.next({
-        ...subscriptionCounts.value,
-        [name]: (subscriptionCounts.value[name] || 0) + 1,
-      })
+      countSubscription(name)
 
       return () => {
         unsubscribe()
         queryStoreCache.delete(key)
-        subscriptionCounts.next({
-          ...subscriptionCounts.value,
-          [name]: (subscriptionCounts.value[name] || 0) - 1,
-        })
+        countSubscription(name, -1)
       }
     },
   ))) as CollectionQueryMethods<ModelType>
