@@ -114,7 +114,7 @@ export function makeProxy<ModelType extends typeof Model>(customMethods: any, cb
 export const extend = <T>(observable: Observable<T>): Observable<T> & Promise<T> => {
   const combined = observable.pipe(
     shareReplay({ bufferSize: 1, refCount: true }),
-    delayedUnsubscribe(typeof window === "undefined" ? 60_000 : 1_000),
+    delayedUnsubscribe(60_000),
   )  as Observable<T> & Promise<T>
 
   combined.then = (onFulfilled, onRejected) => firstValueFrom(combined).then(onFulfilled, onRejected)
