@@ -94,7 +94,7 @@ export function modelQuery<ModelType extends typeof Model>(
         countSubscription(name, -1)
       }
     },
-  ))) as ModelStore<InstanceType<ModelType>>;
+  )), typeof window === "undefined" ? 60_000 : 1_000) as ModelStore<InstanceType<ModelType>>;
 
   myCustomMethods.saving = new BehaviorSubject<boolean|null>(false)
 
