@@ -1,25 +1,25 @@
 import type { Props } from "./types"
-import type { DocumentReference } from "firebase/firestore"
 
 import { db } from "./common"
+import { v4 as uuidv4 } from "uuid"
 import { difference } from "./utils"
 import { metadata } from "./relations/common"
 import { modelQuery, ModelQuery } from "./ModelQuery"
 import { collectionQuery, CollectionQuery } from "./CollectionQuery"
-import { collection, doc, deleteDoc, getDoc, updateDoc, setDoc, serverTimestamp } from "firebase/firestore"
+import { collection, doc, deleteDoc, serverTimestamp, runTransaction } from "firebase/firestore"
+
+const getDocRef = (model: Model) =>
+  doc(collection(db(), (model.constructor as any).collection), model.id)
 
 export default class Model {
   static collection = ""
 
-  // Should this be private?
-  public docRef?: DocumentReference
-  public id?: string
+  public id: string
   public createdAt: Date
   public updatedAt?: Date
 
   constructor(init: any) {
-    this.docRef = init.docRef
-    this.id = this.docRef?.id || init.id
+    this.id = init.id || uuidv4()
 
     if (!init.createdAt) {
       this.createdAt = new Date()
@@ -52,13 +52,13 @@ export default class Model {
   async save(updateOrReplace: "update"|"replace" = "replace"): Promise<void> {
     const data = this.toJSON({ exclude: ["id", "createdAt", "updatedAt"] } as any) as any
 
-    await Promise.all(Object.keys(data).map(async key => {
+    Object.keys(data).map(key => {
       if (data[key] == null) return
 
       if (typeof data[key] === "object" && "subscribe" in data[key]) {
         delete data[key]
       }
-    }))
+    })
 
     const md = metadata.get(this) || {}
 
@@ -67,56 +67,63 @@ export default class Model {
 
       if ("then" in md[key]) {
         const model = await md[key]
-        if (model.docRef == null) await model.save()
-        data[key] = model.docRef
+        await model.save("update")
+        data[key] = getDocRef(model)
       }
     }))
 
-    if (this.id) {
-      this.docRef = this.docRef
-        || doc(collection(db(), (this.constructor as any).collection), this.id)
-      const document = await getDoc(this.docRef)
-
-      if (document.exists() && updateOrReplace === "update") {
-        const diff = difference(data, document.data())
-
-        Object.keys(diff).forEach(key => {
-          if (diff[key] === undefined) {
-            delete diff[key]
-          }
+    const docRef = getDocRef(this)
+    const result = await runTransaction(db(), async transaction => {
+      const document = await transaction.get(docRef)
+      
+      if (!document.exists()) {
+        transaction.set(docRef, {
+          ...data,
+          createdAt: serverTimestamp(),
+          updatedAt: null
         })
 
-        if (Object.keys(diff).length) {
-          diff.updatedAt = serverTimestamp()
-          await updateDoc(this.docRef, diff)
-        }
-
-        Object.assign(this, (await getDoc(this.docRef)).data())
-      } else {
+        return { ...data, createdAt: new Date() }
+      }
+  
+      if (updateOrReplace === "replace") {
         data.createdAt = this.createdAt
         data.updatedAt = serverTimestamp()
-        await setDoc(this.docRef, data)
+        transaction.set(docRef, data)
+        return { ...data, updatedAt: new Date() }
       }
-    } else {
-      const document = doc(collection(db(), (this.constructor as any).collection))
-      await setDoc(document, { ...data, createdAt: serverTimestamp(), updatedAt: null })
-      this.docRef = document
-      this.id = document.id
-    }
+  
+      const diff = difference(data, document.data())
+  
+      Object.keys(diff).forEach(key => {
+        if (diff[key] === undefined) {
+          delete diff[key]
+        }
+      })
+  
+      if (Object.keys(diff).length) {
+        diff.updatedAt = serverTimestamp()
+        transaction.update(docRef, diff)
+      }
+  
+      return { ...diff, updatedAt: new Date() }
+    })
+
+    Object.assign(this, result)
   }
 
   async updateOrCreate(): Promise<void> {
-    await this.save("update")
+    return this.save("update")
   }
 
   async delete(): Promise<void> {
-    this.docRef && await deleteDoc(this.docRef)
+    return deleteDoc(getDocRef(this)).catch(() => {})
   }
 
   toJSON<T extends Array<keyof Props<this>>>(args: { exclude: T }): Omit<Props<this>, T[number]>
   toJSON<T extends Array<keyof Props<this>>>(args: { include: T }): Pick<Props<this>, T[number]>
   toJSON<T extends Array<keyof Props<this>>>(args: { exclude: T } | { include: T }): Omit<Props<this>, T[number]> | Pick<Props<this>, T[number]> {
-    let data: any
+    let data: any = {}
 
     if ("include" in args) {
       for (const key of args.include) {
@@ -131,8 +138,6 @@ export default class Model {
         delete data[key]
       }
     }
-
-    delete data.docRef
 
     return data
   }

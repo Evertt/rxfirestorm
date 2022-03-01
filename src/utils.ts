@@ -1,9 +1,9 @@
-import { transform, isEqualWith, isEqual, isObject } from "lodash"
+import { transform, isEqualWith, isEqual, isObject, difference as arrayDiff } from "lodash"
 
 type Fn = (...args: any[]) => any
 
 export interface ThrottledFunc<T extends Fn> {
-  (...args: Parameters<T>): Promise<void>|undefined;
+  (...args: Parameters<T>): Promise<ReturnType<T>>;
 }
 
 export function throttle<T extends Fn>(fn: T, ...delays: number[]): ThrottledFunc<T> {
@@ -11,28 +11,19 @@ export function throttle<T extends Fn>(fn: T, ...delays: number[]): ThrottledFun
   let t2: NodeJS.Timeout|undefined
   let activeDelay = 0
   let lastArgs: Parameters<T>
+  let promise: Promise<ReturnType<T>> | null = null
 
-  return (...args: Parameters<T>) => {
+  return (...args: Parameters<T>): Promise<ReturnType<T>> => {
     lastArgs = args
-    
-    if (t2) {
-      clearTimeout(t2)
-      t2 = undefined
-    }
 
-    if (t1) {
-      return undefined
-    }
-
-    return new Promise<void>(resolve => {
+    promise ??= new Promise(resolve => {
       t1 = setTimeout(async () => {
-        const result = fn(...lastArgs)
+        const result = fn(...lastArgs) as ReturnType<T>
         t1 = undefined
   
         // Increment the active delay each time
         // and then stick with the last one.
-        // eslint-disable-next-line no-plusplus
-        activeDelay = Math.min(++activeDelay, delays.length - 1)
+        activeDelay = Math.min(activeDelay + 1, delays.length - 1)
   
         // Set a 2nd `Timeout` that resets the
         // active delay back to the first one.
@@ -41,46 +32,43 @@ export function throttle<T extends Fn>(fn: T, ...delays: number[]): ThrottledFun
           t2 = undefined
         }, delays[activeDelay])
 
-        if (typeof result === "object" && "then" in result) {
-          await result
-        }
-        
-        resolve()
+        resolve(await result)
+        promise = null
       }, delays[activeDelay])
     })
+    
+    if (t2) {
+      clearTimeout(t2)
+      t2 = undefined
+    }
+
+    return promise
   }
 }
 
-function customizer(baseValue: any, value: any): boolean {
+function customizer(baseValue: any, value: any) {
   if (Array.isArray(baseValue) && Array.isArray(value)) {
-    return isEqual(baseValue.sort(), value.sort())
-  }
-
-  if (baseValue && baseValue.firestore && value && value.firestore) {
-    return baseValue.path === value.path
+    return baseValue.length === value.length
+      && isEqual([ ...baseValue ].sort(), [ ...value ].sort())
   }
 
   return isEqual(baseValue, value)
 }
 
-export function difference(object: any, base: any): any {
+export function difference(object: any, base: any) {
   function changes(object: any, base: any) {
-    return transform(object, (result: any, value: any, key: string) => {
-      if (!isEqualWith(value, base[key], customizer)) {
-        result[key] = (isObject(value) && isObject(base[key])) ? changes(value, base[key]) : value
-      }
+    return transform(object, (result: any, value, key) => {
+      if (isEqualWith(value, base[key], customizer)) return
+      
+      if (Array.isArray(value) && Array.isArray(base[key]))
+        result[key] = arrayDiff(value, base[key])
+        
+      else if (isObject(value) && isObject(base[key]))
+        result[key] = changes(value, base[key])
+      
+      result[key] = value
     }, {})
   }
 
-  if (object.docRef) {
-    object = { ...object }
-    delete object.docRef
-  }
-
-  if (base.docRef) {
-    base = { ...base }
-    delete base.docRef
-  }
-
-  return changes(object, base)
+  return changes({ ...object }, { ...base })
 }

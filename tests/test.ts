@@ -41,60 +41,60 @@ describe("CRUD", () => {
     expect(fetchedUser.name).to.equal(author.name)
   })
 
-  it("fetches a belongs-to relationship", async () => {
-    const author = new User(userData)
-    const newArticle = new Article({ ...articleData, author })
+  // it("fetches a belongs-to relationship", async () => {
+  //   const author = new User(userData)
+  //   const newArticle = new Article({ ...articleData, author })
 
-    const newAuthor = await newArticle.author
-    expect(newAuthor.name).to.equal(author.name)
+  //   const newAuthor = await newArticle.author
+  //   expect(newAuthor.name).to.equal(author.name)
 
-    await newArticle.save()
-    const fetchedArticle = await Article.query().first()
-    const fetchedAuthor = await fetchedArticle.author
+  //   await newArticle.save()
+  //   const fetchedArticle = await Article.query().first()
+  //   const fetchedAuthor = await fetchedArticle.author
 
-    expect(fetchedAuthor.name).to.equal(newAuthor.name)
-  })
+  //   expect(fetchedAuthor.name).to.equal(newAuthor.name)
+  // })
 
-  it("saves and fetches a subcollection", async () => {
-    const author = new User(userData)
-    const article = new Article({ ...articleData, author })
+  // it("saves and fetches a subcollection", async () => {
+  //   const author = new User(userData)
+  //   const article = new Article({ ...articleData, author })
 
-    await article.save()
-    await article.addComment({ body: "First", author })
-    await article.addComment({ body: "Second", author })
+  //   await article.save()
+  //   await article.addComment({ body: "First", author })
+  //   await article.addComment({ body: "Second", author })
 
-    const comments = await article.comments.orderBy("createdAt", "asc")
+  //   const comments = await article.comments.orderBy("createdAt", "asc")
 
-    expect(comments.length).to.equal(2)
-    expect(comments[0].body).to.equal("First")
+  //   expect(comments.length).to.equal(2)
+  //   expect(comments[0].body).to.equal("First")
 
-    const { name } = Object.getPrototypeOf(comments[0].constructor)
-    expect(name).to.equal("Comment")
-  })
+  //   const { name } = Object.getPrototypeOf(comments[0].constructor)
+  //   expect(name).to.equal("Comment")
+  // })
 
-  it("returns an empty array when a subcollection is non-existent", async () => {
-    const author = new User(userData)
-    const article = new Article({ ...articleData, author })
+  // it("returns an empty array when a subcollection is non-existent", async () => {
+  //   const author = new User(userData)
+  //   const article = new Article({ ...articleData, author })
 
-    await article.save()
+  //   await article.save()
 
-    const comments = await article.comments
+  //   const comments = await article.comments
 
-    expect(comments).to.be.an("array")
-    expect(comments.length).to.equal(0)
-  })
+  //   expect(comments).to.be.an("array")
+  //   expect(comments.length).to.equal(0)
+  // })
 
-  it("can handle subcollections of non-existent root models before saving", async () => {
-    const author = new User(userData)
-    const article = new Article({ ...articleData, author })
+  // it("can handle subcollections of non-existent root models before saving", async () => {
+  //   const author = new User(userData)
+  //   const article = new Article({ ...articleData, author })
 
-    await article.addComment({ body: "Firsttt", author })
-    const comments = await article.comments
+  //   await article.addComment({ body: "Firsttt", author })
+  //   const comments = await article.comments
 
-    expect(comments).to.be.an("array")
-    expect(comments.length).to.equal(1)
-    expect(comments[0].body).to.equal("Firsttt")
-  })
+  //   expect(comments).to.be.an("array")
+  //   expect(comments.length).to.equal(1)
+  //   expect(comments[0].body).to.equal("Firsttt")
+  // })
 
   it("can save multiple edits in one batch", async () => {
     const newUser = new User(userData)

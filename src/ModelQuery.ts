@@ -1,13 +1,13 @@
 import type Model from "./Model"
+import type { Next } from "./common"
 import type { QueryProxy } from "./QueryProxy"
 import type { Unsubscriber, ProxyWrapper, Props } from "./types"
 import type { DocumentReference, DocumentSnapshot } from "firebase/firestore"
 
-import { db } from "./common"
-import { isEqual, debounce } from "lodash"
-import { Observable, BehaviorSubject } from "rxjs"
+import { Observable } from "rxjs"
+import { throttle } from "./utils"
 import { countSnapshot, countSubscription } from "./logging"
-import { extend, initModel, makeProxy, queryStoreCache, queryToString } from "./common"
+import { db, extend, initModel, makeProxy, queryStoreCache, queryToString } from "./common"
 import { collection, doc, limit, query, onSnapshot, QuerySnapshot, Query } from "firebase/firestore"
 
 export type ModelQuery<ModelType extends typeof Model> = ProxyWrapper<QueryProxy, ModelQueryMethods<ModelType>>
@@ -15,8 +15,7 @@ export type ModelQueryMethods<ModelType extends typeof Model> = ModelStore<Insta
 
 export type ModelStore<M extends Model> = Promise<M> & Observable<M> & Unsubscriber & {
   id: string
-  saving: BehaviorSubject<boolean|null>
-  set: (data: M) => Promise<void>
+  set: (data: M) => void
 }
 
 export function modelQuery<ModelType extends typeof Model>(ModelClass: ModelType): ModelQuery<ModelType>
@@ -46,7 +45,7 @@ export function modelQuery<ModelType extends typeof Model>(
   }
 
   if (queryStoreCache.has(key)) {
-    return queryStoreCache.get(key)
+    return queryStoreCache.get(key) as ModelQuery<ModelType>
   }
 
   const myCustomMethods = extend((new Observable<InstanceType<ModelType>>(
@@ -62,29 +61,12 @@ export function modelQuery<ModelType extends typeof Model>(
         }
 
         countSnapshot(snapshot.ref.path)
-        const model = initModel(ModelClass, snapshot)
 
-        if (myCustomMethods.saving.value === false) {
-          return subscriber.next(model)
-        }
-
-        const maybeNewerModel = await myCustomMethods
-        const exclude = ["id", "createdAt", "updatedAt"]
-        const incomingData = model.toJSON({ exclude } as any)
-        const maybeNewerData = maybeNewerModel.toJSON({ exclude } as any)
-
-        if (isEqual(incomingData, maybeNewerData)) {
-          return myCustomMethods.saving.next(false)
-        }
-
-        Object.assign(model, maybeNewerData)
-        throttledSave(model)
-        subscriber.next(model)
+        return subscriber.next(initModel(ModelClass, snapshot))
       }
 
-      const unsubscribe = queryOrRef instanceof Query
-        ? onSnapshot(queryOrRef, handleSnapshot)
-        : onSnapshot(queryOrRef, handleSnapshot)
+      // @ts-ignore
+      const unsubscribe = onSnapshot(queryOrRef, handleSnapshot)
 
       countSubscription(name)
 
@@ -94,26 +76,32 @@ export function modelQuery<ModelType extends typeof Model>(
         countSubscription(name, -1)
       }
     },
-  )), typeof window === "undefined" ? 60_000 : 1_000) as ModelStore<InstanceType<ModelType>>;
+  )), typeof window === "undefined" ? 60_000 : 1_000) as ModelStore<InstanceType<ModelType>> & Next<InstanceType<ModelType>>
 
-  myCustomMethods.saving = new BehaviorSubject<boolean|null>(false)
+  const throttledSave = throttle<typeof myCustomMethods.set>(
+    newModel => newModel.save("update"), 50, 1000
+  )
 
-  const throttledSave = debounce((doc: InstanceType<ModelType>) => {
-    myCustomMethods.saving.next(true)
-    doc.save()
-  }, 2000)
-
-  myCustomMethods.set = async data => {
-    if (myCustomMethods.saving.value === false) {
-      myCustomMethods.saving.next(null)
-    }
-    const doc = await myCustomMethods
-    Object.assign(doc, data)
-    throttledSave(doc)
+  // This set method makes it equivalent
+  // to a writable svelte store.
+  // When a property is set,
+  // a debounced save is called.
+  // This is done so that when code like this is run:
+  // $article.title = "new title";
+  // $article.body = "new body";
+  // the save method will only be called once.
+  myCustomMethods.set = newModel => {
+    myCustomMethods.next(newModel)
+    throttledSave(newModel)
   }
 
   // Then we create a proxy
-  const proxy = makeProxy(myCustomMethods, modelQuery, queryOrRef as Query, ModelClass) as ModelQuery<ModelType>
+  const proxy = makeProxy(
+    myCustomMethods,
+    modelQuery,
+    queryOrRef as Query,
+    ModelClass
+  ) as ModelQuery<ModelType>
 
   return proxy
 }

@@ -13,7 +13,7 @@ import { initModel, extend, makeProxy, queryToString, queryStoreCache } from "./
 export type CollectionQuery<ModelType extends typeof Model> = ProxyWrapper<QueryProxy, CollectionQueryMethods<ModelType>>
 type CollectionQueryMethods<ModelType extends typeof Model> = CollectionStore<InstanceType<ModelType>> & {
   first(): ModelQueryMethods<ModelType>
-  add(model: ConstructorParameters<ModelType>[0]): Promise<void>
+  add(model: ConstructorParameters<ModelType>[0] | ModelType): Promise<void>
 }
 
 export type CollectionStore<M extends Model> = Promise<M[]> & Observable<M[]> & Unsubscriber
@@ -25,7 +25,7 @@ export function collectionQuery<ModelType extends typeof Model>(
   const key = queryToString(query)
 
   if (queryStoreCache.has(key)) {
-    return queryStoreCache.get(key)
+    return queryStoreCache.get(key) as CollectionQuery<ModelType>
   }
 
   const myCustomMethods = extend((new Observable<InstanceType<ModelType>[]>(
@@ -49,14 +49,11 @@ export function collectionQuery<ModelType extends typeof Model>(
         countSubscription(name, -1)
       }
     },
-  ))) as CollectionQueryMethods<ModelType>
+  ))) as unknown as CollectionQueryMethods<ModelType>
 
   myCustomMethods.first = () => modelQuery(ModelClass, query)
   myCustomMethods.add = async model => {
-    let data: any = { ... model }
-    delete data.id
-    delete data.docRef
-    const modelClass = new ModelClass(data)
+    const modelClass = model instanceof ModelClass ? model : new ModelClass(model)
     await modelClass.save()
   }
 

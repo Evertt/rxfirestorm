@@ -1,11 +1,13 @@
 import type Model from "./Model"
+import type { ModelQuery } from "./ModelQuery"
+import type { CollectionQuery } from "./CollectionQuery"
 import type { QueryProxy } from "./QueryProxy"
 import type { FirebaseFirestore } from "firebase/firestore"
 
+import { share } from "rxjs/operators"
 import { proxyQuery } from "./QueryProxy"
-import { shareReplay } from "rxjs/operators"
 import { Query, DocumentSnapshot } from "firebase/firestore"
-import { Observable, firstValueFrom, MonoTypeOperatorFunction } from "rxjs"
+import { Observable, Subject, ReplaySubject, firstValueFrom, timer } from "rxjs"
 
 let fs: FirebaseFirestore
 
@@ -15,7 +17,7 @@ export function init(firestore: FirebaseFirestore) {
 
 export const db = () => fs
 
-export const queryStoreCache = new Map()
+export const queryStoreCache = new Map<string, ModelQuery<any> | CollectionQuery<any>>()
 
 export function queryToString(query: Query): string {
   const possibleKeys = ["_query", "_queryOptions", "jd", "d_"]
@@ -29,33 +31,6 @@ export function queryToString(query: Query): string {
   throw Error("Query in query could not be found")
 }
 
-function delayedUnsubscribe<T>(timeout: number): MonoTypeOperatorFunction<T> {
-  const unsubTimers = new Map()
-  return source => new Observable<T>(subscriber => {
-    clearTimeout(unsubTimers.get(subscriber))
-    unsubTimers.delete(subscriber)
-
-    const subscription = source.subscribe({
-      next(value) {
-        !unsubTimers.has(subscriber) && subscriber.next(value);
-      },
-      error(error) {
-        !unsubTimers.has(subscriber) && subscriber.error(error);
-      },
-      complete() {
-        !unsubTimers.has(subscriber) && subscriber.complete();
-      }
-    })
-
-    return () => {
-      unsubTimers.set(subscriber, setTimeout(() => {
-        subscription?.unsubscribe()
-        unsubTimers.delete(subscriber)
-      }, timeout))
-    }
-  })
-}
-
 export function initModel<ModelType extends typeof Model>(ModelClass: ModelType, doc: DocumentSnapshot): InstanceType<ModelType> {
   const data = doc.data()
 
@@ -66,9 +41,7 @@ export function initModel<ModelType extends typeof Model>(ModelClass: ModelType,
   }
 
   return new ModelClass({
-    id: doc.id,
-    docRef: doc.ref,
-    ...data,
+    id: doc.id, ...data,
   }) as InstanceType<ModelType>
 }
 
@@ -111,15 +84,23 @@ export function makeProxy<ModelType extends typeof Model>(customMethods: any, cb
   })
 }
 
-export const extend = <T>(observable: Observable<T>, ttl = 60_000): Observable<T> & Promise<T> => {
+export type Next<T> = Pick<Subject<T>, "next">
+
+export const extend = <T>(observable: Observable<T>, ttl = 60_000): Observable<T> & Next<T> & Promise<T> => {
+  let subject = new ReplaySubject<T>(1, Infinity)
   const combined = observable.pipe(
-    shareReplay({ bufferSize: 1, refCount: true }),
-    delayedUnsubscribe(ttl),
-  )  as Observable<T> & Promise<T>
+    share({
+      connector: () => subject = new ReplaySubject(1, Infinity),
+      resetOnError: true,
+      resetOnComplete: false,
+      resetOnRefCountZero: () => timer(ttl),
+    })
+  )  as Observable<T> & Next<T> & Promise<T>
 
   combined.then = (onFulfilled, onRejected) => firstValueFrom(combined).then(onFulfilled, onRejected)
   combined.catch = onRejected => firstValueFrom(combined).catch(onRejected)
   combined.finally = onFinally => firstValueFrom(combined).finally(onFinally)
+  combined.next = (value: T) => subject.next(value)
 
   return combined
 }

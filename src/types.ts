@@ -1,4 +1,3 @@
-import type { CollectionQuery } from "./CollectionQuery"
 import { Query as BaseQuery, where, limit, orderBy, DocumentData, query } from "firebase/firestore"
 
 type NonFunctionPropertyNames<T> = {
