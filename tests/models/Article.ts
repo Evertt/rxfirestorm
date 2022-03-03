@@ -13,13 +13,12 @@ export default class Article extends Model {
   public title = ""
   public body = ""
 
-  @BelongsTo(User) public author: ModelQuery<typeof User>
+  @BelongsTo(User) public author!: ModelQuery<typeof User>
   @SubCollection(Comment) public comments!: CollectionQuery<typeof Comment>
 
   constructor(init: { title?: string, body?: string, author: User }) {
     super(init)
     Object.assign(this, init)
-    this.author = init.author as any
   }
 
   async addComment(comment: { body: string, author: User }): Promise<void> {

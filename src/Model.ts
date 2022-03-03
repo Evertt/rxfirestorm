@@ -8,7 +8,7 @@ import { modelQuery, ModelQuery } from "./ModelQuery"
 import { collectionQuery, CollectionQuery } from "./CollectionQuery"
 import { collection, doc, deleteDoc, serverTimestamp, runTransaction } from "firebase/firestore"
 
-const getDocRef = (model: Model) =>
+export const getDocRef = (model: Model) =>
   doc(collection(db(), (model.constructor as any).collection), model.id)
 
 export default class Model {
@@ -52,25 +52,31 @@ export default class Model {
   async save(updateOrReplace: "update"|"replace" = "replace"): Promise<void> {
     const data = this.toJSON({ exclude: ["id", "createdAt", "updatedAt"] } as any) as any
 
-    Object.keys(data).map(key => {
+    Object.keys(data).forEach(async key => {
       if (data[key] == null) return
 
       if (typeof data[key] === "object" && "subscribe" in data[key]) {
-        delete data[key]
+        if ("set" in data[key]) {
+          const model: Model = await data[key]
+          await model.save("update")
+          data[key] = getDocRef(model)
+        } else {
+          delete data[key]
+        }
       }
     })
 
-    const md = metadata.get(this) || {}
+    // const md = metadata.get(this) || {}
 
-    await Promise.all(Object.keys(md).map(async key => {
-      if (key === "id" || !md[key]) return
+    // await Promise.all(Object.keys(md).map(async key => {
+    //   if (key === "id" || !md[key]) return
 
-      if ("then" in md[key]) {
-        const model = await md[key]
-        await model.save("update")
-        data[key] = getDocRef(model)
-      }
-    }))
+    //   if ("then" in md[key]) {
+    //     const model = await md[key]
+    //     await model.save("update")
+    //     data[key] = getDocRef(model)
+    //   }
+    // }))
 
     const docRef = getDocRef(this)
     const result = await runTransaction(db(), async transaction => {

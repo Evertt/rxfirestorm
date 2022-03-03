@@ -1,37 +1,37 @@
+import { DocumentReference } from "firebase/firestore"
 import type Model from "../Model"
-import { Observable } from "rxjs"
-import { extend } from "../common"
-import { metadata } from "./common"
 import { ModelQuery, modelQuery } from "../ModelQuery"
-import { startWith } from "rxjs/operators"
+import { startWith } from "rxjs"
 
 export const BelongsTo = <ModelType extends typeof Model>(SubModelClass: ModelType) => <
   Target extends Model & Record<Key, ModelQuery<ModelType>>, Key extends string | symbol
 >(target: Target, key: Key): void => {
-  function get(this: InstanceType<ModelType>) {
-    const md = metadata.get(this) || {}
+  let id: string | null = null
+  let model: typeof SubModelClass | null = null
 
-    return md[key]
+  function get(this: InstanceType<ModelType>) {
+    if (!id) return null
+    let query = modelQuery(SubModelClass, id)
+    if (model) {
+      (query as any).next(model)
+      model = null
+    }
+    return query
   }
 
   function set(this: InstanceType<ModelType>, newValue: any) {
-    let query: any
-
     if (!newValue) {
+      id = null
     } else if (typeof newValue === "string") {
-      query = newValue
-    } else if (newValue.docRef != null) {
-      query = newValue.docRef.id
-    } else if (newValue.id != null) {
-      query = newValue.id
+      id = newValue
+    } else if (newValue instanceof SubModelClass) {
+      id = newValue.id
+      model = newValue as any
+    } else if (newValue instanceof DocumentReference) {
+      id = newValue.id
     } else {
-      newValue = extend(new Observable().pipe(startWith(newValue)))
+      throw new Error("BelongsTo assignment not the right type")
     }
-
-    metadata.set(this, {
-      ...metadata.get(this),
-      [key]: query ? modelQuery(SubModelClass as any, query as any) : newValue,
-    })
   }
 
   Object.defineProperty(target, key, { get, set })

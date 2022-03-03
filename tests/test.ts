@@ -41,19 +41,19 @@ describe("CRUD", () => {
     expect(fetchedUser.name).to.equal(author.name)
   })
 
-  // it("fetches a belongs-to relationship", async () => {
-  //   const author = new User(userData)
-  //   const newArticle = new Article({ ...articleData, author })
+  it("fetches a belongs-to relationship", async () => {
+    const author = new User(userData)
+    const newArticle = new Article({ ...articleData, author })
 
-  //   const newAuthor = await newArticle.author
-  //   expect(newAuthor.name).to.equal(author.name)
+    const newAuthor = await newArticle.author
+    expect(newAuthor.name).to.equal(author.name)
 
-  //   await newArticle.save()
-  //   const fetchedArticle = await Article.query().first()
-  //   const fetchedAuthor = await fetchedArticle.author
+    await newArticle.save()
+    const fetchedArticle = await Article.query().first()
+    const fetchedAuthor = await fetchedArticle.author
 
-  //   expect(fetchedAuthor.name).to.equal(newAuthor.name)
-  // })
+    expect(fetchedAuthor.name).to.equal(newAuthor.name)
+  })
 
   // it("saves and fetches a subcollection", async () => {
   //   const author = new User(userData)

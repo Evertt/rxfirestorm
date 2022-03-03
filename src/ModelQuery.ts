@@ -5,7 +5,7 @@ import type { Unsubscriber, ProxyWrapper, Props } from "./types"
 import type { DocumentReference, DocumentSnapshot } from "firebase/firestore"
 
 import { Observable } from "rxjs"
-import { throttle } from "./utils"
+import { throttle, sleep } from "./utils"
 import { countSnapshot, countSubscription } from "./logging"
 import { db, extend, initModel, makeProxy, queryStoreCache, queryToString } from "./common"
 import { collection, doc, limit, query, onSnapshot, QuerySnapshot, Query } from "firebase/firestore"
@@ -14,7 +14,6 @@ export type ModelQuery<ModelType extends typeof Model> = ProxyWrapper<QueryProxy
 export type ModelQueryMethods<ModelType extends typeof Model> = ModelStore<InstanceType<ModelType>>
 
 export type ModelStore<M extends Model> = Promise<M> & Observable<M> & Unsubscriber & {
-  id: string
   set: (data: M) => void
 }
 
@@ -53,14 +52,23 @@ export function modelQuery<ModelType extends typeof Model>(
       queryStoreCache.set(key, proxy)
       const { name } = ModelClass
 
+      let snapshots = 0
       const handleSnapshot = async (snapshot: QuerySnapshot | DocumentSnapshot) => {
+        snapshots++
+        const model = await Promise.race([sleep(40), myCustomMethods])
         snapshot = snapshot instanceof QuerySnapshot ? snapshot.docs[0] : snapshot
 
         if (!snapshot || !snapshot.exists()) {
-          return subscriber.error(new Error(`${ModelClass.name} not found.`))
+          if (snapshots > 1) return subscriber.next(undefined)
+          return model || subscriber.error(new Error(`${ModelClass.name} not found.`))
         }
 
         countSnapshot(snapshot.ref.path)
+
+        if (model) {
+          Object.assign(model, snapshot.data())
+          return subscriber.next(model as InstanceType<ModelType>)
+        }
 
         return subscriber.next(initModel(ModelClass, snapshot))
       }

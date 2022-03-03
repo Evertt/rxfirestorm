@@ -87,10 +87,10 @@ export function makeProxy<ModelType extends typeof Model>(customMethods: any, cb
 export type Next<T> = Pick<Subject<T>, "next">
 
 export const extend = <T>(observable: Observable<T>, ttl = 60_000): Observable<T> & Next<T> & Promise<T> => {
-  let subject = new ReplaySubject<T>(1, Infinity)
+  const subject = new ReplaySubject<T>(1, Infinity)
   const combined = observable.pipe(
     share({
-      connector: () => subject = new ReplaySubject(1, Infinity),
+      connector: () => subject, // = new ReplaySubject(1, Infinity),
       resetOnError: true,
       resetOnComplete: false,
       resetOnRefCountZero: () => timer(ttl),

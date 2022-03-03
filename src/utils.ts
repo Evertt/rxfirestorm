@@ -6,6 +6,9 @@ export interface ThrottledFunc<T extends Fn> {
   (...args: Parameters<T>): Promise<ReturnType<T>>;
 }
 
+export const sleep = (ms: number) =>
+  new Promise(r => setTimeout(r, ms))
+
 export function throttle<T extends Fn>(fn: T, ...delays: number[]): ThrottledFunc<T> {
   let t1: NodeJS.Timeout|undefined
   let t2: NodeJS.Timeout|undefined
