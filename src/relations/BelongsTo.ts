@@ -1,7 +1,6 @@
-import { DocumentReference } from "firebase/firestore"
 import type Model from "../Model"
+import { DocumentReference } from "firebase/firestore"
 import { ModelQuery, modelQuery } from "../ModelQuery"
-import { startWith } from "rxjs"
 
 export const BelongsTo = <ModelType extends typeof Model>(SubModelClass: ModelType) => <
   Target extends Model & Record<Key, ModelQuery<ModelType>>, Key extends string | symbol

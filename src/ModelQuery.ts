@@ -52,14 +52,14 @@ export function modelQuery<ModelType extends typeof Model>(
       queryStoreCache.set(key, proxy)
       const { name } = ModelClass
 
-      let snapshots = 0
+      let snapshotCount = 0
       const handleSnapshot = async (snapshot: QuerySnapshot | DocumentSnapshot) => {
-        snapshots++
+        snapshotCount++
         const model = await Promise.race([sleep(40), myCustomMethods])
         snapshot = snapshot instanceof QuerySnapshot ? snapshot.docs[0] : snapshot
 
         if (!snapshot || !snapshot.exists()) {
-          if (snapshots > 1) return subscriber.next(undefined)
+          if (snapshotCount > 1) return subscriber.next(undefined)
           return model || subscriber.error(new Error(`${ModelClass.name} not found.`))
         }
 

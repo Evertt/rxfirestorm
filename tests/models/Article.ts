@@ -2,10 +2,11 @@ import Comment from "./Comment"
 import User from "./User"
 import Model, {
   BelongsTo,
-  SubCollection,
+  HasMany,
   ModelQuery,
   CollectionQuery,
 } from "../../src"
+import { getDocRef } from "../../src/Model"
 
 export default class Article extends Model {
   static collection = "articles"
@@ -13,8 +14,11 @@ export default class Article extends Model {
   public title = ""
   public body = ""
 
-  @BelongsTo(User) public author!: ModelQuery<typeof User>
-  @SubCollection(Comment) public comments!: CollectionQuery<typeof Comment>
+  @BelongsTo(User)
+  public author!: ModelQuery<typeof User>
+
+  @HasMany(Comment, "article")
+  public comments!: CollectionQuery<typeof Comment>
 
   constructor(init: { title?: string, body?: string, author: User }) {
     super(init)
@@ -22,6 +26,6 @@ export default class Article extends Model {
   }
 
   async addComment(comment: { body: string, author: User }): Promise<void> {
-    await this.comments.add(comment)
+    await this.comments.add({ ...comment, article: getDocRef(this) } as unknown as typeof Comment)
   }
 }
