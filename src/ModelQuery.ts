@@ -61,12 +61,13 @@ export function modelQuery<ModelType extends typeof Model>(
 
         countSnapshot(snapshot.ref.path)
 
-        const model = await Promise.race([myCustomMethods, sleep(40)])
+        // TODO: decide whether to use this code or throw it away...
+        // const model = await Promise.race([myCustomMethods, sleep(40)])
 
-        if (model) {
-          Object.assign(model, snapshot.data())
-          return subscriber.next(model as InstanceType<ModelType>)
-        }
+        // if (model) {
+        //   Object.assign(model, snapshot.data())
+        //   return subscriber.next(model as InstanceType<ModelType>)
+        // }
 
         return subscriber.next(initModel(ModelClass, snapshot))
       }

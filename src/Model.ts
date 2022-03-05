@@ -62,11 +62,10 @@ export default class Model {
     const data = this.toJSON({ exclude: ["id", "createdAt", "updatedAt"] } as any) as any
 
     await Promise.all(listGetters(this).map(async key => {
-      const t = this as any
-      if (!t[key] || typeof t[key] !== "object") return
-      if (!t[key].subscribe) return
-      if (!t[key].set) return
-      const model: Model = await t[key]
+      const maybeQ = (this as any)[key]
+      if (!maybeQ || typeof maybeQ !== "object") return
+      if (!maybeQ.subscribe || !maybeQ.set) return
+      const model: Model = await maybeQ
       await model.save("update")
       data[key] = getDocRef(model)
     }))

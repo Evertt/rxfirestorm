@@ -14,16 +14,8 @@ export default class Comment extends Model {
 
   public body: string = ""
 
-  public get title(): string {
-    return "My title"
-  }
-
   constructor(init: { body: string, author: User }) {
     super(init)
     Object.assign(this, init)
-  }
-
-  sayHi() {
-    return "Hi!"
   }
 }

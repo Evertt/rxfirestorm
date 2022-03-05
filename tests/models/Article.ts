@@ -22,6 +22,5 @@ export default class Article extends Model {
   constructor(init: { title?: string, body?: string, author: User }) {
     super(init)
     Object.assign(this, init)
-    this.author = init.author as any
   }
 }

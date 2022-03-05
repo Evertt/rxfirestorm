@@ -55,22 +55,21 @@ $: console.log($article.body)
 ```typescript
 // models.ts
 import Model, {
+  HasMany,
   BelongsTo,
   ModelQuery,
-  SubCollection,
   CollectionQuery
 } from "rxfirestorm"
 
 export class User extends Model {
   static collection = "users"
 
-  public email: string
-  public name: string
+  public email = ""
+  public name = ""
 
   constructor(init: { email?: string, name?: string }) {
     super(init)
-    this.email = init.title ?? ""
-    this.name = init.body ?? ""
+    Object.assign(this, init)
   }
 }
 
@@ -80,30 +79,26 @@ export class Comment extends Model {
   public body: string
 
   @BelongsTo(User)
-  public author: ModelQuery<typeof User>
+  public author!: ModelQuery<typeof User>
 
   constructor(init: { body: string, author: User }) {
     super(init)
-
-    this.body = init.body
-    this.author = init.author as any
+    Object.assign(this, init)
   }
 }
 
 export class Article extends Model {
   static collection = "articles"
 
-  public title: string
-  public body: string
+  public title = ""
+  public body = ""
 
-  @BelongsTo(User) public author: ModelQuery<typeof User>
-  @SubCollection(Comment) public comments!: CollectionQuery<typeof Comment>
+  @BelongsTo(User) public author!: ModelQuery<typeof User>
+  @HasMany(Comment) public comments!: CollectionQuery<typeof Comment>
 
   constructor(init: { title?: string, body?: string, author: User }) {
     super(init)
-    this.title = init.title ?? ""
-    this.body = init.body ?? ""
-    this.author = init.author as any
+    Object.assign(this, init)
   }
 
   async addComment(comment: { body: string, author: User }): Promise<void> {
@@ -125,9 +120,3 @@ comments = await article.comments.orderBy("createdAt")
 
 comments.forEach(comment => console.log(comment.body))
 ```
-
-### Help
-
-I need help improving this library. The code is a bit buggy. I don't understand exactly how property decorators work so I bodged it together. Actually the whole thing is a bit of a bodge. I'd also like to make a `@HasMany` (different from `@Subcollection`) but I didn't manage yet.
-
-So please come and help!
