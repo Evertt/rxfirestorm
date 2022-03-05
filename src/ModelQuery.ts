@@ -17,30 +17,26 @@ export type ModelStore<M extends Model> = Promise<M> & Observable<M> & Unsubscri
   set: (data: M) => void
 }
 
-export function modelQuery<ModelType extends typeof Model>(ModelClass: ModelType): ModelQuery<ModelType>
-export function modelQuery<ModelType extends typeof Model>(ModelClass: ModelType, id: string): ModelQuery<ModelType>
-export function modelQuery<ModelType extends typeof Model>(ModelClass: ModelType, query: Query): ModelQuery<ModelType>
 export function modelQuery<ModelType extends typeof Model>(
-  ModelClass: ModelType, queryOrId?: Query | string,
+  ModelClass: ModelType,
+  qim: InstanceType<ModelType> | Query | string = collection(db(), ModelClass.collection),
 ): ModelQuery<ModelType> {
-  queryOrId ??= collection(db(), ModelClass.collection)
 
   type D = Props<InstanceType<ModelType>>
   let queryOrRef: Query<D> | DocumentReference<D>
   let key: string
 
-  switch (typeof queryOrId) {
-    case "undefined":
-      queryOrRef = query(collection(db(), ModelClass.collection), limit(1))
-      key = queryToString(queryOrRef)
-      break;
-    case "string":
-      key = `${ModelClass.collection}/${queryOrId}`
-      queryOrRef = doc(collection(db(), ModelClass.collection), queryOrId)
-      break;
-    default:
-      queryOrRef = query(queryOrId, limit(1))
-      key = queryToString(queryOrRef)
+  if (typeof qim === "string") {
+    key = `${ModelClass.collection}/${qim}`
+    queryOrRef = doc(collection(db(), ModelClass.collection), qim)
+  }
+  else if (qim instanceof ModelClass) {
+    key = `${ModelClass.collection}/${qim.id}`
+    queryOrRef = doc(collection(db(), ModelClass.collection), qim.id)
+  }
+  else {
+    queryOrRef = query(qim, limit(1))
+    key = queryToString(queryOrRef)
   }
 
   if (queryStoreCache.has(key)) {
@@ -55,15 +51,17 @@ export function modelQuery<ModelType extends typeof Model>(
       let snapshotCount = 0
       const handleSnapshot = async (snapshot: QuerySnapshot | DocumentSnapshot) => {
         snapshotCount++
-        const model = await Promise.race([sleep(40), myCustomMethods])
         snapshot = snapshot instanceof QuerySnapshot ? snapshot.docs[0] : snapshot
 
         if (!snapshot || !snapshot.exists()) {
           if (snapshotCount > 1) return subscriber.next(undefined)
-          return model || subscriber.error(new Error(`${ModelClass.name} not found.`))
+          return qim instanceof ModelClass ? subscriber.next(qim)
+            : subscriber.error(new Error(`${ModelClass.name} not found.`))
         }
 
         countSnapshot(snapshot.ref.path)
+
+        const model = await Promise.race([myCustomMethods, sleep(40)])
 
         if (model) {
           Object.assign(model, snapshot.data())

@@ -3,10 +3,19 @@ import type { Props } from "./types"
 import { db } from "./common"
 import { v4 as uuidv4 } from "uuid"
 import { difference } from "./utils"
-import { metadata } from "./relations/common"
 import { modelQuery, ModelQuery } from "./ModelQuery"
 import { collectionQuery, CollectionQuery } from "./CollectionQuery"
 import { collection, doc, deleteDoc, serverTimestamp, runTransaction } from "firebase/firestore"
+
+function listGetters(instance: any) {
+  return Object.entries(
+    Object.getOwnPropertyDescriptors(
+      Reflect.getPrototypeOf(instance)
+    )
+  )
+  .filter(e => typeof e[1].get === 'function' && e[0] !== '__proto__')
+  .map(e => e[0]);
+}
 
 export const getDocRef = (model: Model) =>
   doc(collection(db(), (model.constructor as any).collection), model.id)
@@ -52,31 +61,15 @@ export default class Model {
   async save(updateOrReplace: "update"|"replace" = "replace"): Promise<void> {
     const data = this.toJSON({ exclude: ["id", "createdAt", "updatedAt"] } as any) as any
 
-    Object.keys(data).forEach(async key => {
-      if (data[key] == null) return
-
-      if (typeof data[key] === "object" && "subscribe" in data[key]) {
-        if ("set" in data[key]) {
-          const model: Model = await data[key]
-          await model.save("update")
-          data[key] = getDocRef(model)
-        } else {
-          delete data[key]
-        }
-      }
-    })
-
-    // const md = metadata.get(this) || {}
-
-    // await Promise.all(Object.keys(md).map(async key => {
-    //   if (key === "id" || !md[key]) return
-
-    //   if ("then" in md[key]) {
-    //     const model = await md[key]
-    //     await model.save("update")
-    //     data[key] = getDocRef(model)
-    //   }
-    // }))
+    await Promise.all(listGetters(this).map(async key => {
+      const t = this as any
+      if (!t[key] || typeof t[key] !== "object") return
+      if (!t[key].subscribe) return
+      if (!t[key].set) return
+      const model: Model = await t[key]
+      await model.save("update")
+      data[key] = getDocRef(model)
+    }))
 
     const docRef = getDocRef(this)
     const result = await runTransaction(db(), async transaction => {

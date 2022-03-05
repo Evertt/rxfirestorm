@@ -1,3 +1,4 @@
+import type Model from "./Model"
 import { transform, isEqualWith, isEqual, isObject, difference as arrayDiff } from "lodash"
 
 type Fn = (...args: any[]) => any
@@ -74,4 +75,8 @@ export function difference(object: any, base: any) {
   }
 
   return changes({ ...object }, { ...base })
+}
+
+export function isModelClass(v: Function | typeof Model): v is typeof Model {
+  return typeof v === 'function' && /^\s*class\s+/.test(v.toString());
 }

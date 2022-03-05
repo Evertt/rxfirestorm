@@ -1,5 +1,4 @@
-import Comment from "./Comment"
-import User from "./User"
+import { Comment, User } from "./index"
 import Model, {
   BelongsTo,
   HasMany,
@@ -17,15 +16,12 @@ export default class Article extends Model {
   @BelongsTo(User)
   public author!: ModelQuery<typeof User>
 
-  @HasMany(Comment, "article")
+  @HasMany(() => Comment, "article")
   public comments!: CollectionQuery<typeof Comment>
 
   constructor(init: { title?: string, body?: string, author: User }) {
     super(init)
     Object.assign(this, init)
-  }
-
-  async addComment(comment: { body: string, author: User }): Promise<void> {
-    await this.comments.add({ ...comment, article: getDocRef(this) } as unknown as typeof Comment)
+    this.author = init.author as any
   }
 }

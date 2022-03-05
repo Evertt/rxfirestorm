@@ -54,7 +54,7 @@ export function collectionQuery<ModelType extends typeof Model>(
   myCustomMethods.first = () => modelQuery(ModelClass, query)
   myCustomMethods.add = async model => {
     const modelClass = model instanceof ModelClass ? model : new ModelClass(model)
-    await modelClass.save()
+    return await modelClass.save()
   }
 
   // Then we create a proxy

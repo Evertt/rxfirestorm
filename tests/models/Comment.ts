@@ -1,6 +1,5 @@
 import type { DocumentReference } from "firebase/firestore"
-import type Article from "./Article"
-import User from "./User"
+import { Article, User } from "./index"
 import { doc } from "firebase/firestore"
 import Model, { BelongsTo, ModelQuery } from "../../src"
 
@@ -10,12 +9,21 @@ export default class Comment extends Model {
   @BelongsTo(User)
   public author!: ModelQuery<typeof User>
 
-  public article!: DocumentReference<Article>
+  @BelongsTo(() => Article)
+  public article!: ModelQuery<typeof Article>
 
   public body: string = ""
+
+  public get title(): string {
+    return "My title"
+  }
 
   constructor(init: { body: string, author: User }) {
     super(init)
     Object.assign(this, init)
+  }
+
+  sayHi() {
+    return "Hi!"
   }
 }

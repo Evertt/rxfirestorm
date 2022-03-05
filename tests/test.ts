@@ -1,8 +1,7 @@
 import { init } from "../src"
 import { expect } from "chai"
 import fetch from "node-fetch"
-import User from "./models/User"
-import Article from "./models/Article"
+import { Article, User } from "./models"
 import firebaseConfig from "../firebase.json"
 import { db } from "./firebase"
 
@@ -60,8 +59,8 @@ describe("CRUD", () => {
     const article = new Article({ ...articleData, author })
 
     await article.save()
-    await article.addComment({ body: "First", author })
-    await article.addComment({ body: "Second", author })
+    await article.comments.add({ body: "First", author })
+    await article.comments.add({ body: "Second", author })
 
     const comments = await article.comments.orderBy("createdAt", "asc")
 
@@ -88,7 +87,7 @@ describe("CRUD", () => {
     const author = new User(userData)
     const article = new Article({ ...articleData, author })
 
-    await article.addComment({ body: "Firsttt", author })
+    await article.comments.add({ body: "Firsttt", author })
     const comments = await article.comments
 
     expect(comments).to.be.an("array")
@@ -119,7 +118,7 @@ describe("CRUD", () => {
     const author = new User(userData)
     const article = new Article({ ...articleData, author })
 
-    await article.addComment({ body: "Firsttt", author })
+    await article.comments.add({ body: "Firsttt", author })
     await article.save()
     const comments = await article.comments
 
