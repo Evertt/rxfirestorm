@@ -83,7 +83,7 @@ export function modelQuery<ModelType extends typeof Model>(
         countSubscription(name, -1)
       }
     },
-  )), typeof window === "undefined" ? 60_000 : 1_000) as ModelStore<InstanceType<ModelType>> & Next<InstanceType<ModelType>>
+  )), typeof window === "undefined" ? 60_000 : 6_000) as ModelStore<InstanceType<ModelType>> & Next<InstanceType<ModelType>>
 
   const throttledSave = throttle<typeof myCustomMethods.set>(
     newModel => newModel.save("update"), 50, 1000
