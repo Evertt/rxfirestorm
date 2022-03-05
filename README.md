@@ -120,3 +120,5 @@ comments = await article.comments.orderBy("createdAt")
 
 comments.forEach(comment => console.log(comment.body))
 ```
+
+Check out the tests for more examples!

@@ -5,7 +5,6 @@ import Model, {
   ModelQuery,
   CollectionQuery,
 } from "../../src"
-import { getDocRef } from "../../src/Model"
 
 export default class Article extends Model {
   static collection = "articles"
@@ -16,7 +15,7 @@ export default class Article extends Model {
   @BelongsTo(User)
   public author!: ModelQuery<typeof User>
 
-  @HasMany(() => Comment, "article")
+  @HasMany(Comment, "article")
   public comments!: CollectionQuery<typeof Comment>
 
   constructor(init: { title?: string, body?: string, author: User }) {

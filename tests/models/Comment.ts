@@ -9,6 +9,8 @@ export default class Comment extends Model {
   @BelongsTo(User)
   public author!: ModelQuery<typeof User>
 
+  // The arrow function here is to prevent
+  // problems with circular referencing...
   @BelongsTo(() => Article)
   public article!: ModelQuery<typeof Article>
 

@@ -5,7 +5,7 @@ import type { Unsubscriber, ProxyWrapper, Props } from "./types"
 import type { DocumentReference, DocumentSnapshot } from "firebase/firestore"
 
 import { Observable } from "rxjs"
-import { throttle, sleep } from "./utils"
+import { throttle } from "./utils"
 import { countSnapshot, countSubscription } from "./logging"
 import { db, extend, initModel, makeProxy, queryStoreCache, queryToString } from "./common"
 import { collection, doc, limit, query, onSnapshot, QuerySnapshot, Query } from "firebase/firestore"
