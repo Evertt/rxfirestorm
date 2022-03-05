@@ -1,6 +1,4 @@
-import type { DocumentReference } from "firebase/firestore"
 import { Article, User } from "./index"
-import { doc } from "firebase/firestore"
 import Model, { BelongsTo, ModelQuery } from "../../src"
 
 export default class Comment extends Model {
