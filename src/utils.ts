@@ -1,5 +1,9 @@
 import type Model from "./Model"
-import { transform, isEqualWith, isEqual, isObject, difference as arrayDiff } from "lodash"
+import transform from "lodash/transform"
+import isEqualWith from "lodash/isEqualWith"
+import isEqual from "lodash/isEqual"
+import isObject from "lodash/isObject"
+import arrayDiff from "lodash/difference"
 
 type Fn = (...args: any[]) => any
 

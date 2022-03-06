@@ -54,7 +54,7 @@ describe("CRUD", () => {
     expect(fetchedAuthor.name).to.equal(newAuthor.name)
   })
 
-  it("saves and fetches a subcollection", async () => {
+  it("saves and fetches a hasmany relation", async () => {
     const author = new User(userData)
     const article = new Article({ ...articleData, author })
 
@@ -71,7 +71,7 @@ describe("CRUD", () => {
     expect(name).to.equal("Comment")
   })
 
-  it("returns an empty array when a subcollection is non-existent", async () => {
+  it("returns an empty array when a hasmany relation is non-existent", async () => {
     const author = new User(userData)
     const article = new Article({ ...articleData, author })
 
@@ -83,12 +83,76 @@ describe("CRUD", () => {
     expect(comments.length).to.equal(0)
   })
 
-  it("can handle subcollections of non-existent root models before saving", async () => {
+  it("can handle hasmany relation of non-existent root models before saving", async () => {
     const author = new User(userData)
     const article = new Article({ ...articleData, author })
 
     await article.comments.add({ body: "Firsttt", author })
     const comments = await article.comments
+
+    expect(comments).to.be.an("array")
+    expect(comments.length).to.equal(1)
+    expect(comments[0].body).to.equal("Firsttt")
+  })
+
+  it("can handle hasmany relations of non-existent root models after saving", async () => {
+    const author = new User(userData)
+    const article = new Article({ ...articleData, author })
+
+    await article.comments.add({ body: "Firsttt", author })
+    await article.save()
+    const comments = await article.comments
+
+    expect(comments).to.be.an("array")
+    expect(comments.length).to.equal(1)
+    expect(comments[0].body).to.equal("Firsttt")
+  })
+
+  it("saves and fetches a subcollection", async () => {
+    const author = new User(userData)
+    const article = new Article({ ...articleData, author })
+
+    await article.save()
+    await article.subComments.add({ body: "First", author })
+    await article.subComments.add({ body: "Second", author })
+
+    const comments = await article.subComments.orderBy("createdAt", "asc")
+
+    expect(comments.length).to.equal(2)
+    expect(comments[0].body).to.equal("First")
+  })
+
+  it("returns an empty array when a subcollection is non-existent", async () => {
+    const author = new User(userData)
+    const article = new Article({ ...articleData, author })
+
+    await article.save()
+
+    const comments = await article.subComments
+
+    expect(comments).to.be.an("array")
+    expect(comments.length).to.equal(0)
+  })
+
+  it("can handle subcollection of non-existent root models before saving", async () => {
+    const author = new User(userData)
+    const article = new Article({ ...articleData, author })
+
+    await article.subComments.add({ body: "Firsttt", author })
+    const comments = await article.subComments
+
+    expect(comments).to.be.an("array")
+    expect(comments.length).to.equal(1)
+    expect(comments[0].body).to.equal("Firsttt")
+  })
+
+  it("can handle subcollections of non-existent root models after saving", async () => {
+    const author = new User(userData)
+    const article = new Article({ ...articleData, author })
+
+    await article.subComments.add({ body: "Firsttt", author })
+    await article.save()
+    const comments = await article.subComments
 
     expect(comments).to.be.an("array")
     expect(comments.length).to.equal(1)
@@ -112,19 +176,6 @@ describe("CRUD", () => {
     fetchedUser = await User.query().first()
     expect(fetchedUser.name).to.equal(newUser.name)
     expect(fetchedUser.email).to.equal(newUser.email)
-  })
-
-  it("can handle subcollections of non-existent root models after saving", async () => {
-    const author = new User(userData)
-    const article = new Article({ ...articleData, author })
-
-    await article.comments.add({ body: "Firsttt", author })
-    await article.save()
-    const comments = await article.comments
-
-    expect(comments).to.be.an("array")
-    expect(comments.length).to.equal(1)
-    expect(comments[0].body).to.equal("Firsttt")
   })
 })
 

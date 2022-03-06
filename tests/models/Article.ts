@@ -4,6 +4,7 @@ import Model, {
   HasMany,
   ModelQuery,
   CollectionQuery,
+  SubCollection,
 } from "../../src"
 
 export default class Article extends Model {
@@ -17,6 +18,9 @@ export default class Article extends Model {
 
   @HasMany(Comment, "article")
   public comments!: CollectionQuery<typeof Comment>
+
+  @SubCollection(Comment)
+  public subComments!: CollectionQuery<typeof Comment>
 
   constructor(init: { title?: string, body?: string, author: User }) {
     super(init)
