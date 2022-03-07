@@ -6,13 +6,18 @@ import type { FirebaseFirestore } from "firebase/firestore"
 
 import { share } from "rxjs/operators"
 import { proxyQuery } from "./QueryProxy"
-import { Query, DocumentSnapshot } from "firebase/firestore"
+import { Query, DocumentSnapshot,
+  enableMultiTabIndexedDbPersistence,
+  enableIndexedDbPersistence
+} from "firebase/firestore"
 import { Observable, Subject, ReplaySubject, firstValueFrom, timer } from "rxjs"
 
 let fs: FirebaseFirestore
 
-export function init(firestore: FirebaseFirestore) {
+export function init(firestore: FirebaseFirestore, enableCaching = true) {
   fs = firestore
+  if (enableCaching) enableMultiTabIndexedDbPersistence(fs)
+    .catch(_ => enableIndexedDbPersistence(fs)).catch(() => {})
 }
 
 export const db = () => fs
