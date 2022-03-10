@@ -110,7 +110,7 @@ export type Next<T> = Pick<Subject<T>, "next">
 export const extend = <T>(observable: Observable<T>, ttl = 60_000): Observable<T> & Next<T> & Promise<T> => {
   const subject = new ReplaySubject<T>(1, Infinity)
   let lastValue: any
-  const onRejecteds: Function[] = []
+  let onRejecteds: Function[] = []
 
   const combined = observable.pipe(
     share({
@@ -124,8 +124,10 @@ export const extend = <T>(observable: Observable<T>, ttl = 60_000): Observable<T
         onRejected(error)
       }
 
-      if (onRejecteds.length) return EMPTY
-      else throw error
+      if (onRejecteds.length) {
+        onRejecteds = []
+        return EMPTY
+      } else throw error
     })
   )  as Observable<T> & Next<T> & Promise<T>
 
