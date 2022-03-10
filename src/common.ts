@@ -4,13 +4,13 @@ import type { CollectionQuery } from "./CollectionQuery"
 import type { QueryProxy } from "./QueryProxy"
 import type { FirebaseFirestore } from "firebase/firestore"
 
-import { share, tap } from "rxjs/operators"
+import { share, catchError } from "rxjs/operators"
 import { proxyQuery } from "./QueryProxy"
 import { Query, DocumentSnapshot,
   enableMultiTabIndexedDbPersistence,
   enableIndexedDbPersistence
 } from "firebase/firestore"
-import { Observable, Subject, ReplaySubject, firstValueFrom, timer } from "rxjs"
+import { Observable, Subject, ReplaySubject, firstValueFrom, timer, EMPTY } from "rxjs"
 
 let fs: FirebaseFirestore
 
@@ -110,7 +110,6 @@ export type Next<T> = Pick<Subject<T>, "next">
 export const extend = <T>(observable: Observable<T>, ttl = 60_000): Observable<T> & Next<T> & Promise<T> => {
   const subject = new ReplaySubject<T>(1, Infinity)
   let lastValue: any
-  const onFulfilleds: Function[] = []
   const onRejecteds: Function[] = []
 
   const combined = observable.pipe(
@@ -120,28 +119,18 @@ export const extend = <T>(observable: Observable<T>, ttl = 60_000): Observable<T
       resetOnComplete: false,
       resetOnRefCountZero: () => timer(ttl),
     }),
-    tap({
-      next: value => {
-        lastValue = value
-        for (const onFulfilled of onFulfilleds) {
-          try { onFulfilled(value) }
-          catch (_) {}
-        }
-      },
-      error: error => {
-        for (const onRejected of onRejecteds) {
-          try { onRejected(error) }
-          catch (_) {}
-        }
-      },
+    catchError(error => {
+      for (const onRejected of onRejecteds) {
+        onRejected(error)
+      }
+
+      if (onRejecteds.length) return EMPTY
+      else throw error
     })
   )  as Observable<T> & Next<T> & Promise<T>
 
   combined.then = (onFulfilled, onRejected) => {
-    if (calledBySvelteAwaitBlock(3)) {
-      onFulfilled && onFulfilleds.push(onFulfilled)
-      onRejected && onRejecteds.push(onRejected)
-    }
+    onRejected && onRejecteds.push(onRejected)
 
     return firstValueFrom(combined).then(onFulfilled, onRejected)
   }
