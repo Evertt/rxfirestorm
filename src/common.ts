@@ -50,14 +50,18 @@ export function initModel<ModelType extends typeof Model>(ModelClass: ModelType,
   }) as InstanceType<ModelType>
 }
 
+const calledBySvelteAwaitBlock = (n: number) =>
+  new Error().stack?.split("\n")[n].includes("is_promise")
+
 export function makeProxy<ModelType extends typeof Model>(customMethods: any, cb: any, query: Query | QueryProxy, ModelClass: ModelType) {
   query = proxyQuery(query)
 
   return new Proxy(customMethods, {
     get(target, prop, receiver) {
-      if (prop === "then") {
-        const calledBySvelte = new Error().stack?.split("\n")[2].includes("is_promise")
-        if (calledBySvelte && target.value) {
+      if (prop === "then" && typeof window === "undefined") {
+        // This is a hack to make this library work properly
+        // with a SvelteKit {#await} block during SSR.
+        if (calledBySvelteAwaitBlock(3) && target.value) {
           return undefined
         }
       }
@@ -89,6 +93,11 @@ export function makeProxy<ModelType extends typeof Model>(customMethods: any, cb
         }
       }
 
+      // Continuation of the SvelteKit SSR {#await} block hack
+      if (typeof queryProp === "undefined" && typeof window === "undefined" && target.value) {
+        return Reflect.get(target.value, prop, receiver)
+      }
+
       // If queryFunc anything other than a function,
       // then just return that without wrapping it.
       return queryProp
@@ -101,6 +110,9 @@ export type Next<T> = Pick<Subject<T>, "next">
 export const extend = <T>(observable: Observable<T>, ttl = 60_000): Observable<T> & Next<T> & Promise<T> => {
   const subject = new ReplaySubject<T>(1, Infinity)
   let lastValue: any
+  const onFulfilleds: Function[] = []
+  const onRejecteds: Function[] = []
+
   const combined = observable.pipe(
     share({
       connector: () => subject, // = new ReplaySubject(1, Infinity),
@@ -108,10 +120,31 @@ export const extend = <T>(observable: Observable<T>, ttl = 60_000): Observable<T
       resetOnComplete: false,
       resetOnRefCountZero: () => timer(ttl),
     }),
-    tap(value => lastValue = value)
+    tap({
+      next: value => {
+        lastValue = value
+        for (const onFulfilled of onFulfilleds) {
+          try { onFulfilled(value) }
+          catch (_) {}
+        }
+      },
+      error: error => {
+        for (const onRejected of onRejecteds) {
+          try { onRejected(error) }
+          catch (_) {}
+        }
+      },
+    })
   )  as Observable<T> & Next<T> & Promise<T>
 
-  combined.then = (onFulfilled, onRejected) => firstValueFrom(combined).then(onFulfilled, onRejected)
+  combined.then = (onFulfilled, onRejected) => {
+    if (calledBySvelteAwaitBlock(3)) {
+      onFulfilled && onFulfilleds.push(onFulfilled)
+      onRejected && onRejecteds.push(onRejected)
+    }
+
+    return firstValueFrom(combined).then(onFulfilled, onRejected)
+  }
   combined.catch = onRejected => firstValueFrom(combined).catch(onRejected)
   combined.finally = onFinally => firstValueFrom(combined).finally(onFinally)
   combined.next = (value: T) => subject.next(value)

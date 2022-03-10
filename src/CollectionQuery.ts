@@ -38,6 +38,11 @@ export function collectionQuery<ModelType extends typeof Model>(
             doc => initModel(ModelClass, doc),
           ),
         ),
+        error => {
+          countSubscription(name, -1)
+          queryStoreCache.delete(key)
+          subscriber.error(error)
+        }
       )
 
       const { name } = ModelClass

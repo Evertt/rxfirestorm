@@ -72,8 +72,18 @@ export function modelQuery<ModelType extends typeof Model>(
         return subscriber.next(initModel(ModelClass, snapshot))
       }
 
-      // @ts-ignore
-      const unsubscribe = onSnapshot(queryOrRef, handleSnapshot)
+      const unsubscribe = onSnapshot(
+        // @ts-ignore
+        queryOrRef,
+        {
+          next: handleSnapshot,
+          error: error => {
+            countSubscription(name, -1)
+            queryStoreCache.delete(key)
+            subscriber.error(error)
+          }
+        }
+      )
 
       countSubscription(name)
 
