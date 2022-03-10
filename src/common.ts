@@ -124,7 +124,7 @@ export const extend = <T>(observable: Observable<T>, ttl = 60_000): Observable<T
         onRejected(error)
       }
 
-      if (onRejecteds.length) {
+      if (onRejecteds.length || typeof window === "undefined") {
         onRejecteds = []
         return EMPTY
       } else throw error
