@@ -132,9 +132,12 @@ export const extend = <T>(observable: Observable<T>, ttl = 60_000): Observable<T
   )  as Observable<T> & Next<T> & Promise<T>
 
   combined.then = (onFulfilled, onRejected) => {
-    onRejected && onRejecteds.push(onRejected)
+    return firstValueFrom(combined).then(value => {
+      if (onRejected && typeof window !== "undefined")
+        onRejecteds.push(onRejected)
 
-    return firstValueFrom(combined).then(onFulfilled, onRejected)
+      return onFulfilled ? onFulfilled(value) : value as any
+    }, onRejected)
   }
   combined.catch = onRejected => firstValueFrom(combined).catch(onRejected)
   combined.finally = onFinally => firstValueFrom(combined).finally(onFinally)
