@@ -55,6 +55,13 @@ export function makeProxy<ModelType extends typeof Model>(customMethods: any, cb
 
   return new Proxy(customMethods, {
     get(target, prop, receiver) {
+      if (prop === "then") {
+        const calledBySvelte = new Error().stack?.split("\n")[2].includes("is_promise")
+        if (calledBySvelte && target.value) {
+          return undefined
+        }
+      }
+
       // If the requested prop is in our custom methods thingy,
       // then that takes precedent.
       if (prop in target) {
@@ -104,16 +111,12 @@ export const extend = <T>(observable: Observable<T>, ttl = 60_000): Observable<T
     tap(value => lastValue = value)
   )  as Observable<T> & Next<T> & Promise<T>
 
-  combined.then = (onFulfilled, onRejected) => {
-    if (lastValue && onFulfilled) {
-      return Promise.resolve(onFulfilled(lastValue))
-    }
-
-    return firstValueFrom(combined).then(onFulfilled, onRejected)
-  }
+  combined.then = (onFulfilled, onRejected) => firstValueFrom(combined).then(onFulfilled, onRejected)
   combined.catch = onRejected => firstValueFrom(combined).catch(onRejected)
   combined.finally = onFinally => firstValueFrom(combined).finally(onFinally)
   combined.next = (value: T) => subject.next(value)
+
+  Object.defineProperty(combined, "value", { get: () => lastValue })
 
   return combined
 }
