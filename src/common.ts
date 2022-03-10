@@ -4,7 +4,7 @@ import type { CollectionQuery } from "./CollectionQuery"
 import type { QueryProxy } from "./QueryProxy"
 import type { FirebaseFirestore } from "firebase/firestore"
 
-import { share } from "rxjs/operators"
+import { share, tap } from "rxjs/operators"
 import { proxyQuery } from "./QueryProxy"
 import { Query, DocumentSnapshot,
   enableMultiTabIndexedDbPersistence,
@@ -93,16 +93,24 @@ export type Next<T> = Pick<Subject<T>, "next">
 
 export const extend = <T>(observable: Observable<T>, ttl = 60_000): Observable<T> & Next<T> & Promise<T> => {
   const subject = new ReplaySubject<T>(1, Infinity)
+  let lastValue: any
   const combined = observable.pipe(
     share({
       connector: () => subject, // = new ReplaySubject(1, Infinity),
       resetOnError: true,
       resetOnComplete: false,
       resetOnRefCountZero: () => timer(ttl),
-    })
+    }),
+    tap(value => lastValue = value)
   )  as Observable<T> & Next<T> & Promise<T>
 
-  combined.then = (onFulfilled, onRejected) => firstValueFrom(combined).then(onFulfilled, onRejected)
+  combined.then = (onFulfilled, onRejected) => {
+    if (lastValue && onFulfilled) {
+      return Promise.resolve(onFulfilled(lastValue))
+    }
+
+    return firstValueFrom(combined).then(onFulfilled, onRejected)
+  }
   combined.catch = onRejected => firstValueFrom(combined).catch(onRejected)
   combined.finally = onFinally => firstValueFrom(combined).finally(onFinally)
   combined.next = (value: T) => subject.next(value)
