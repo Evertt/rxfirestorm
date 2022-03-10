@@ -51,7 +51,7 @@ export function initModel<ModelType extends typeof Model>(ModelClass: ModelType,
 }
 
 const calledBySvelteAwaitBlock = (n: number) =>
-  new Error().stack?.split("\n")[n].includes("is_promise")
+  (new Error().stack?.split("\n")[n] || "").includes("is_promise")
 
 export function makeProxy<ModelType extends typeof Model>(customMethods: any, cb: any, query: Query | QueryProxy, ModelClass: ModelType) {
   query = proxyQuery(query)
