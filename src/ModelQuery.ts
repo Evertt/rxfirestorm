@@ -77,11 +77,7 @@ export function modelQuery<ModelType extends typeof Model>(
         queryOrRef,
         {
           next: handleSnapshot,
-          error: error => {
-            countSubscription(name, -1)
-            queryStoreCache.delete(key)
-            subscriber.error(error)
-          }
+          error: error => subscriber.error(error)
         }
       )
 
